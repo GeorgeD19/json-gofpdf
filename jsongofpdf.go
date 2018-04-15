@@ -3,53 +3,105 @@ package jsongofpdf
 import (
 	"errors"
 
-	"github.com/spf13/cast"
-
 	"github.com/buger/jsonparser"
 	"github.com/jung-kurt/gofpdf"
+	"github.com/spf13/cast"
 )
 
-// Errors
 var (
-	ErrInvalidOperation = errors.New("Invalid Operation %s")
+	ErrInvalidOperation = errors.New("Invalid Operation")
 )
 
-// Operations contains all possible operations that can be performed
-var Operations = make(map[string]Operation)
+// RunOperations will iterate through the array of operations and execute each
+func RunOperations(logic string, data string) (opdf *gofpdf.Fpdf, err error) {
+	pdf := new(gofpdf.Fpdf)
 
-// Operation interface that allows operations to be registered in a list
-type Operation interface {
-	run(pdf *gofpdf.Fpdf, logic string, data string) (opdf *gofpdf.Fpdf, ovar interface{})
-}
+	parseErr := err
 
-// AddOperation adds possible operation to Operations library
-func AddOperation(name string, callable Operation) {
-	Operations[name] = callable
-}
+	jsonparser.ArrayEach([]byte(logic), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+		switch dataType {
+		case jsonparser.Object:
+			pdf, err = ParseObject(pdf, string(value), data)
+			if err != nil {
+				parseErr = err
+			}
+			break
+		}
+	})
 
-// RemoveOperation removes possible operation from Operations library if it exists
-func RemoveOperation(name string) {
-	_, ok := Operations[name]
-	if ok {
-		delete(Operations, name)
+	if parseErr != nil {
+		return nil, parseErr
 	}
+
+	return pdf, nil
 }
 
-// RunOperation is to ensure that any operation ran doesn't crash the system if it doesn't exist
-func RunOperation(pdf *gofpdf.Fpdf, name string, logic string, data string) (opdf *gofpdf.Fpdf, ores interface{}, err error) {
-	_, ok := Operations[name]
-	if ok {
-		pdf, vars := Operations[name].run(pdf, logic, data)
-		return pdf, vars, nil
+// RunOperation ensures that any operation ran doesn't crash the system if it doesn't exist
+func RunOperation(pdf *gofpdf.Fpdf, name string, logic string, data string) (opdf *gofpdf.Fpdf, err error) {
+	switch name {
+	case "new":
+		pdf = New(pdf, logic, data)
+		break
+	case "addpage":
+		pdf = AddPage(pdf, logic, data)
+		break
+	case "setfont":
+		pdf = SetFont(pdf, logic, data)
+		break
+	case "cell":
+		pdf = Cell(pdf, logic, data)
+		break
+	default:
+		return pdf, ErrInvalidOperation
 	}
-	return nil, nil, ErrInvalidOperation
+	return pdf, nil
 }
 
-func init() {
-	AddOperation("new", new(New))
-	AddOperation("addpage", new(AddPage))
-	AddOperation("cell", new(Cell))
-	AddOperation("setfont", new(SetFont))
+func New(pdf *gofpdf.Fpdf, logic string, data string) (opdf *gofpdf.Fpdf) {
+	orientation := GetString("orientation", logic, "P")
+	unit := GetString("unit", logic, "mm")
+	size := GetString("size", logic, "A4")
+	directory := GetString("dir", logic, "")
+	return gofpdf.New(orientation, unit, size, directory)
+}
+
+func AddPage(pdf *gofpdf.Fpdf, logic string, data string) (opdf *gofpdf.Fpdf) {
+	pdf.AddPage()
+	return pdf
+}
+
+func SetFont(pdf *gofpdf.Fpdf, logic string, data string) (opdf *gofpdf.Fpdf) {
+	family := GetString("family", logic, "Arial")
+	style := GetString("style", logic, "")
+	size := GetFloat("size", logic, 8.0)
+	pdf.SetFont(family, style, size)
+	return pdf
+}
+
+func Cell(pdf *gofpdf.Fpdf, logic string, data string) (opdf *gofpdf.Fpdf) {
+	width := GetFloat("width", logic, 0.0)
+	height := GetFloat("height", logic, 0.0)
+	text := GetString("text", logic, "")
+	pdf.Cell(width, height, text)
+	return pdf
+}
+
+// ParseObject entry point
+func ParseObject(pdf *gofpdf.Fpdf, logic string, data string) (opdf *gofpdf.Fpdf, err error) {
+
+	err = jsonparser.ObjectEach([]byte(logic), func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
+		pdf, err = RunOperation(pdf, string(key), string(value), data)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		return pdf, err
+	}
+
+	return pdf, nil
 }
 
 func GetBool(name string, logic string, fallback bool) (value bool) {
@@ -92,82 +144,8 @@ func GetAttribute(name string, logic string) (value []byte, dataType jsonparser.
 	return jsonparser.Get([]byte(logic), name)
 }
 
-// New type is entry point for parser
-type New struct{}
-
-func (o New) run(pdf *gofpdf.Fpdf, logic string, data string) (opdf *gofpdf.Fpdf, ovar interface{}) {
-	orientation := GetString("orientation", logic, "P")
-	unit := GetString("unit", logic, "mm")
-	size := GetString("size", logic, "A4")
-	directory := GetString("dir", logic, "")
-	return gofpdf.New(orientation, unit, size, directory), nil
-}
-
-// AddPage type is entry point for parser
-type AddPage struct{}
-
-func (o AddPage) run(pdf *gofpdf.Fpdf, logic string, data string) (opdf *gofpdf.Fpdf, ovar interface{}) {
-	pdf.AddPage()
-	return pdf, nil
-}
-
-// SetFont type is entry point for parser
-type SetFont struct{}
-
-func (o SetFont) run(pdf *gofpdf.Fpdf, logic string, data string) (opdf *gofpdf.Fpdf, ovar interface{}) {
-	family := GetString("family", logic, "Arial")
-	style := GetString("style", logic, "")
-	size := GetFloat("size", logic, 8.0)
-	pdf.SetFont(family, style, size)
-	return pdf, nil
-}
-
-// Cell type is entry point for parser
-type Cell struct{}
-
-func (o Cell) run(pdf *gofpdf.Fpdf, logic string, data string) (opdf *gofpdf.Fpdf, ovar interface{}) {
-	width := GetFloat("width", logic, 0.0)
-	height := GetFloat("height", logic, 0.0)
-	text := GetString("text", logic, "")
-	pdf.Cell(width, height, text)
-	return pdf, nil
-}
-
-// RunOperations will iterate through the array of operations and execute each
-func RunOperations(logic string, data string) (opdf *gofpdf.Fpdf) {
-	pdf := new(gofpdf.Fpdf)
-	jsonparser.ArrayEach([]byte(logic), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		switch dataType {
-		case jsonparser.Object:
-			pdf, _, _ = ParseObject(pdf, string(value), data)
-			break
-		}
-	})
-
-	return pdf
-}
-
-// ParseObject entry point
-func ParseObject(pdf *gofpdf.Fpdf, logic string, data string) (opdf *gofpdf.Fpdf, vars interface{}, err error) {
-
-	err = jsonparser.ObjectEach([]byte(logic), func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
-		if operation, ok := Operations[string(key)]; ok {
-			pdf, _ = operation.run(pdf, string(value), data)
-		} else {
-			return ErrInvalidOperation
-		}
-		return nil
-	})
-
-	if err != nil {
-		return nil, false, err
-	}
-
-	return pdf, vars, nil
-}
-
 // Apply is the entry function to parse logic and optional data
-func Apply(logic string, data string) (opdf *gofpdf.Fpdf, vars interface{}, errs error) {
+func Apply(logic string, data string) (opdf *gofpdf.Fpdf, errs error) {
 
 	// Ensure data is object
 	if data == `` {
@@ -175,7 +153,7 @@ func Apply(logic string, data string) (opdf *gofpdf.Fpdf, vars interface{}, errs
 	}
 
 	// Must be an object to kick off process
-	result := RunOperations(logic, data)
+	result, err := RunOperations(logic, data)
 
-	return result, nil, nil
+	return result, err
 }
