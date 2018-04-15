@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	ErrInvalidOperation = errors.New("Invalid Operation")
+	ErrInvalidOperation = errors.New("Invalid operation")
 )
 
 // RunOperations will iterate through the array of operations and execute each
