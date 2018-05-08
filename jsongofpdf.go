@@ -3,53 +3,43 @@ package jsongofpdf
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
 
-	"github.com/GeorgeD19/libraries/alpaca"
-	jsonlogic "github.com/GeorgeD19/libraries/json-logic-go"
+	"github.com/GeorgeD19/json-logic-go"
 	"github.com/buger/jsonparser"
 	"github.com/h2non/filetype"
 	"github.com/jung-kurt/gofpdf"
 	"github.com/spf13/cast"
 )
 
-var (
-	ErrInvalidOperation = errors.New("Invalid operation")
-)
+func New(options JSONGOFPDFOptions) (*JSONGOFPDF, error) {
+	jsongofpdf := &JSONGOFPDF{}
 
-const (
-	colCount = 2
-	marginRw = 4.0
-	marginH  = 15.0
-	lineHtLg = 6.0
-	lineHt   = 4.0
-)
+	jsongofpdf.Logic = options.Logic
+	jsongofpdf.Parser = options.Parser
 
-type ItemData struct {
-	Key   string
-	Field string
-	Value string
-	Media []alpaca.ImageFile
+	return jsongofpdf, nil
 }
 
-type Configuration struct {
-	currentX int
-	currentY int
+// Apply is the entry function to parse logic and optional data
+func (p *JSONGOFPDF) GetPDF() (opdf *gofpdf.Fpdf, errs error) {
+	pdf := new(gofpdf.Fpdf)
+	result, err := p.RunOperations(pdf, p.Logic)
+
+	return result, err
 }
 
 // RunOperations will iterate through the array of operations and execute each
-func RunOperations(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf, err error) {
+func (p *JSONGOFPDF) RunOperations(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf, err error) {
 
 	parseErr := err
 
 	jsonparser.ArrayEach([]byte(logic), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 		switch dataType {
 		case jsonparser.Object:
-			pdf, err = ParseObject(pdf, string(value), data)
+			pdf, err = p.ParseObject(pdf, string(value))
 			if err != nil {
 				parseErr = err
 			}
@@ -66,72 +56,68 @@ func RunOperations(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpd
 }
 
 // RunOperation ensures that any operation ran doesn't crash the system if it doesn't exist
-func RunOperation(pdf *gofpdf.Fpdf, name string, logic string, data []ItemData) (opdf *gofpdf.Fpdf, err error) {
+func (p *JSONGOFPDF) RunOperation(pdf *gofpdf.Fpdf, name string, logic string) (opdf *gofpdf.Fpdf, err error) {
 	// fmt.Println(name)
 	switch name {
 	case "new":
-		pdf = New(pdf, logic, data)
+		pdf = p.New(pdf, logic)
 		break
 	case "addpage":
-		pdf = AddPage(pdf, logic, data)
+		pdf = p.AddPage(pdf, logic)
 		break
 	case "setfont":
-		pdf = SetFont(pdf, logic, data)
+		pdf = p.SetFont(pdf, logic)
 		break
 	case "setx":
-		pdf = SetX(pdf, logic, data)
+		pdf = p.SetX(pdf, logic)
 		break
 	case "sety":
-		pdf = SetY(pdf, logic, data)
+		pdf = p.SetY(pdf, logic)
 		break
 	case "setxy":
-		pdf = SetXY(pdf, logic, data)
+		pdf = p.SetXY(pdf, logic)
 		break
 	case "cell":
-		pdf = Cell(pdf, logic, data)
+		pdf = p.Cell(pdf, logic)
 		break
 	case "cellformat":
-		pdf = CellFormat(pdf, logic, data)
+		pdf = p.CellFormat(pdf, logic)
 		break
 	case "setautopagebreak":
-		pdf = SetAutoPageBreak(pdf, logic, data)
+		pdf = p.SetAutoPageBreak(pdf, logic)
 		break
 	case "aliasnbpages":
-		pdf = AliasNbPages(pdf, logic, data)
+		pdf = p.AliasNbPages(pdf, logic)
 		break
 	case "setheaderfunc":
-		pdf, _ = SetHeaderFunc(pdf, logic, data)
+		pdf, _ = p.SetHeaderFunc(pdf, logic)
 		break
 	case "setfooterfunc":
-		pdf, _ = SetFooterFunc(pdf, logic, data)
+		pdf, _ = p.SetFooterFunc(pdf, logic)
 		break
 	case "settopmargin":
-		pdf = SetTopMargin(pdf, logic, data)
+		pdf = p.SetTopMargin(pdf, logic)
 		break
 	case "setleftmargin":
-		pdf = SetLeftMargin(pdf, logic, data)
+		pdf = p.SetLeftMargin(pdf, logic)
 		break
 	case "settextcolor":
-		pdf = SetTextColor(pdf, logic, data)
+		pdf = p.SetTextColor(pdf, logic)
 		break
 	case "setfillcolor":
-		pdf = SetFillColor(pdf, logic, data)
+		pdf = p.SetFillColor(pdf, logic)
 		break
 	case "bodyfunc":
-		pdf, _ = BodyFunc(pdf, logic, data)
+		pdf, _ = p.BodyFunc(pdf, logic)
 		break
 	case "ln":
-		pdf = Ln(pdf, logic, data)
+		pdf = p.Ln(pdf, logic)
 		break
 	case "image":
-		pdf = Image(pdf, logic, data)
+		pdf = p.Image(pdf, logic)
 		break
-
 	case "var":
-		pdf = Var(pdf, logic, data)
-		break
-	case "-":
-		pdf = Minus(pdf, logic, data)
+		pdf = p.Var(pdf, logic)
 		break
 	default:
 		return pdf, ErrInvalidOperation
@@ -139,22 +125,17 @@ func RunOperation(pdf *gofpdf.Fpdf, name string, logic string, data []ItemData) 
 	return pdf, nil
 }
 
-func Minus(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	// fmt.Println("Minus")
-	// fmt.Println(logic)
-	// TODO Pass in JSON values
-	values := jsonlogic.GetValues(logic, `{"test":"4"}`)
-	result := jsonlogic.MinusOperation(cast.ToFloat64(values[0]), cast.ToFloat64(values[1]))
-	fmt.Println(values)
-	fmt.Println(result)
-	// pdf, _ = RunOperations(pdf, logic, data)
-
-	return pdf
+func (p *JSONGOFPDF) New(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	orientation := p.GetString("orientation", logic, "P")
+	unit := p.GetString("unit", logic, "mm")
+	size := p.GetString("size", logic, "A4")
+	directory := p.GetString("dir", logic, "")
+	return gofpdf.New(orientation, unit, size, directory)
 }
 
-func Var(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	fmt.Println("Var")
-	fmt.Println(logic) // jsonlogic.Apply()
+func (p *JSONGOFPDF) Var(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	// fmt.Println("Var")
+	// fmt.Println(logic) // jsonlogic.Apply()
 
 	// docWidth, _ := pdf.GetPageSize()
 	// docWidth = docWidth - (marginH * 2)
@@ -162,28 +143,28 @@ func Var(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
 
 	// fmt.Println(data)
 	// // Try extract the variable from the data
-	for x := 0; x < len(data); x++ {
-		if data[x].Key == logic {
-			fmt.Println(data[x].Value)
-			// 		pdf.MultiCell(docWidth/2, lineHt, tr(data[x].Field), "", "L", true)
-		}
-	}
+	// for x := 0; x < len(data); x++ {
+	// 	if data[x].Key == logic {
+	// 		fmt.Println(data[x].Value)
+	// 		// 		pdf.MultiCell(docWidth/2, lineHt, tr(data[x].Field), "", "L", true)
+	// 	}
+	// }
 
 	return pdf
 }
 
-func Image(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	src := GetString("src", logic, "")
-	name := GetString("name", logic, "")
-	x := GetFloat("x", logic, 0.0)
-	y := GetFloat("y", logic, 0.0)
-	width := GetFloat("width", logic, 0.0)
-	height := GetFloat("height", logic, 0.0)
-	flow := GetBool("flow", logic, false)
-	link := GetInt("link", logic, -1)
-	linkStr := GetString("linkstr", logic, "")
+func (p *JSONGOFPDF) Image(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	src := p.GetString("src", logic, "")
+	name := p.GetString("name", logic, "")
+	x := p.GetFloat("x", logic, 0.0)
+	y := p.GetFloat("y", logic, 0.0)
+	width := p.GetFloat("width", logic, 0.0)
+	height := p.GetFloat("height", logic, 0.0)
+	flow := p.GetBool("flow", logic, false)
+	link := p.GetInt("link", logic, -1)
+	linkStr := p.GetString("linkstr", logic, "")
 
-	image, _ := GetImage(src)
+	image, _ := p.GetImage(src)
 	imageContent := strings.TrimPrefix(image.Data, "0x")
 	imageDecoded, _ := hex.DecodeString(imageContent)
 
@@ -198,146 +179,134 @@ func Image(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) 
 	return pdf
 }
 
-func Ln(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	height := GetFloat("height", logic, -1.0)
+func (p *JSONGOFPDF) Ln(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	height := p.GetFloat("height", logic, -1.0)
 	pdf.Ln(height)
 	return pdf
 }
 
-func BodyFunc(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf, err error) {
-	// fmt.Println("bodyfunc")
-	// fmt.Println(data)
-	for x := 0; x < len(data); x++ {
-		item := make([]ItemData, 0)
-		item = append(item, data[x])
-		pdf, err = RunOperations(pdf, logic, item)
+func (p *JSONGOFPDF) BodyFunc(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf, err error) {
+	for x := 0; x < len(p.Parser.FieldRegistry); x++ {
+		pdf, err = p.RunOperations(pdf, logic)
 	}
 	return pdf, err
 }
 
-func SetFillColor(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	r := GetInt("r", logic, 0)
-	g := GetInt("r", logic, 0)
-	b := GetInt("r", logic, 0)
+func (p *JSONGOFPDF) SetFillColor(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	r := p.GetInt("r", logic, 0)
+	g := p.GetInt("r", logic, 0)
+	b := p.GetInt("r", logic, 0)
 	pdf.SetFillColor(r, g, b)
 	return pdf
 }
 
-func SetTextColor(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	r := GetInt("r", logic, 0)
-	g := GetInt("r", logic, 0)
-	b := GetInt("r", logic, 0)
+func (p *JSONGOFPDF) SetTextColor(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	r := p.GetInt("r", logic, 0)
+	g := p.GetInt("r", logic, 0)
+	b := p.GetInt("r", logic, 0)
 	pdf.SetTextColor(r, g, b)
 	return pdf
 }
 
-func New(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	orientation := GetString("orientation", logic, "P")
-	unit := GetString("unit", logic, "mm")
-	size := GetString("size", logic, "A4")
-	directory := GetString("dir", logic, "")
-	return gofpdf.New(orientation, unit, size, directory)
-}
-
-func AddPage(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
+func (p *JSONGOFPDF) AddPage(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	pdf.AddPage()
 	return pdf
 }
 
-func SetFont(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	family := GetString("family", logic, "Arial")
-	style := GetString("style", logic, "")
-	size := GetFloat("size", logic, 8.0)
+func (p *JSONGOFPDF) SetFont(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	family := p.GetString("family", logic, "Arial")
+	style := p.GetString("style", logic, "")
+	size := p.GetFloat("size", logic, 8.0)
 	pdf.SetFont(family, style, size)
 	return pdf
 }
 
-func SetAutoPageBreak(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	auto := GetBool("auto", logic, true)
-	margin := GetFloat("margin", logic, 15.0)
+func (p *JSONGOFPDF) SetAutoPageBreak(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	auto := p.GetBool("auto", logic, true)
+	margin := p.GetFloat("margin", logic, 15.0)
 	pdf.SetAutoPageBreak(auto, margin)
 	return pdf
 }
 
-func AliasNbPages(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	aliasStr := GetString("alias", logic, "")
+func (p *JSONGOFPDF) AliasNbPages(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	aliasStr := p.GetString("alias", logic, "")
 	pdf.AliasNbPages(aliasStr)
 	return pdf
 }
 
-func Cell(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	width := GetFloat("width", logic, 0.0)
-	height := GetFloat("height", logic, 0.0)
-	text := GetString("text", logic, "")
+func (p *JSONGOFPDF) Cell(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	width := p.GetFloat("width", logic, 0.0)
+	height := p.GetFloat("height", logic, 0.0)
+	text := p.GetString("text", logic, "")
 	pdf.Cell(width, height, text)
 	return pdf
 }
 
-func CellFormat(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	width := GetFloat("width", logic, 0.0)
-	height := GetFloat("height", logic, 0.0)
-	text := GetString("text", logic, "")
+func (p *JSONGOFPDF) CellFormat(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	width := p.GetFloat("width", logic, 0.0)
+	height := p.GetFloat("height", logic, 0.0)
+	text := p.GetString("text", logic, "")
 	text = strings.Replace(text, "{nn}", cast.ToString(pdf.PageNo()), -1)
-	border := GetString("border", logic, "")
-	line := GetInt("line", logic, 0)
-	align := GetString("align", logic, "L")
-	fill := GetBool("fill", logic, false)
-	link := GetInt("link", logic, 0)
-	linkStr := GetString("linkstr", logic, "")
+	border := p.GetString("border", logic, "")
+	line := p.GetInt("line", logic, 0)
+	align := p.GetString("align", logic, "L")
+	fill := p.GetBool("fill", logic, false)
+	link := p.GetInt("link", logic, 0)
+	linkStr := p.GetString("linkstr", logic, "")
 	pdf.CellFormat(width, height, text, border, line, align, fill, link, linkStr)
 	return pdf
 }
 
-func SetY(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	y := GetFloat("y", logic, 0.0)
+func (p *JSONGOFPDF) SetY(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	y := p.GetFloat("y", logic, 0.0)
 	pdf.SetY(y)
 	return pdf
 }
 
-func SetX(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	x := GetFloat("x", logic, 0.0)
+func (p *JSONGOFPDF) SetX(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	x := p.GetFloat("x", logic, 0.0)
 	pdf.SetX(x)
 	return pdf
 }
 
-func SetXY(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	x := GetFloat("x", logic, 0.0)
-	y := GetFloat("y", logic, 0.0)
+func (p *JSONGOFPDF) SetXY(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	x := p.GetFloat("x", logic, 0.0)
+	y := p.GetFloat("y", logic, 0.0)
 	pdf.SetXY(x, y)
 	return pdf
 }
 
-func SetTopMargin(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	margin := GetFloat("margin", logic, 0.0)
+func (p *JSONGOFPDF) SetTopMargin(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	margin := p.GetFloat("margin", logic, 0.0)
 	pdf.SetTopMargin(margin)
 	return pdf
 }
 
-func SetLeftMargin(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf) {
-	margin := GetFloat("margin", logic, 0.0)
+func (p *JSONGOFPDF) SetLeftMargin(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	margin := p.GetFloat("margin", logic, 0.0)
 	pdf.SetLeftMargin(margin)
 	return pdf
 }
 
-func SetHeaderFunc(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf, err error) {
+func (p *JSONGOFPDF) SetHeaderFunc(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf, err error) {
 	pdf.SetHeaderFunc(func() {
-		pdf, err = RunOperations(pdf, logic, data)
+		pdf, err = p.RunOperations(pdf, logic)
 	})
 	return pdf, err
 }
 
-func SetFooterFunc(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf, err error) {
+func (p *JSONGOFPDF) SetFooterFunc(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf, err error) {
 	pdf.SetFooterFunc(func() {
-		pdf, err = RunOperations(pdf, logic, data)
+		pdf, err = p.RunOperations(pdf, logic)
 	})
 	return pdf, err
 }
 
 // ParseObject entry point
-func ParseObject(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.Fpdf, err error) {
+func (p *JSONGOFPDF) ParseObject(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf, err error) {
 
 	err = jsonparser.ObjectEach([]byte(logic), func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
-		pdf, err = RunOperation(pdf, string(key), string(value), data)
+		pdf, err = p.RunOperation(pdf, string(key), string(value))
 		if err != nil {
 			return err
 		}
@@ -351,45 +320,69 @@ func ParseObject(pdf *gofpdf.Fpdf, logic string, data []ItemData) (opdf *gofpdf.
 	return pdf, nil
 }
 
-func GetBool(name string, logic string, fallback bool) (value bool) {
+func (p *JSONGOFPDF) GetBool(name string, logic string, fallback bool) (value bool) {
 	result := fallback
-	attribute, _, _, err := GetAttribute(name, logic, false)
+	attribute, _, _, err := p.GetAttribute(name, logic, false)
 	if err == nil {
 		result = cast.ToBool(attribute)
 	}
 	return result
 }
 
-func GetFloat(name string, logic string, fallback float64) (value float64) {
+func (p *JSONGOFPDF) GetFloat(name string, logic string, fallback float64) (value float64) {
 	result := fallback
-	attribute, _, _, err := GetAttribute(name, logic, false)
+	attribute, _, _, err := p.GetAttribute(name, logic, false)
 	if err == nil {
 		result = cast.ToFloat64(cast.ToString(attribute))
 	}
 	return result
 }
 
-func GetInt(name string, logic string, fallback int) (value int) {
+func (p *JSONGOFPDF) GetInt(name string, logic string, fallback int) (value int) {
 	result := fallback
-	attribute, _, _, err := GetAttribute(name, logic, false)
+	attribute, _, _, err := p.GetAttribute(name, logic, false)
 	if err == nil {
 		result = cast.ToInt(cast.ToString(attribute))
 	}
 	return result
 }
 
-func GetString(name string, logic string, fallback string) (value string) {
+func (p *JSONGOFPDF) GetString(name string, logic string, fallback string) (value string) {
 	result := fallback
-	attribute, _, _, err := GetAttribute(name, logic, true)
+	attribute, _, _, err := p.GetAttribute(name, logic, true)
 	if err == nil {
 		result = cast.ToString(attribute)
 	}
 	return result
 }
 
-func GetAttribute(name string, logic string, debug bool) (value []byte, dataType jsonparser.ValueType, offset int, err error) {
+func (p *JSONGOFPDF) ParseAttribute(logic string) (value []byte, dataType jsonparser.ValueType) {
+	// Here we can use json-logic-go to parse the attribute and return the value as interface{}
+	result, _ := jsonlogic.Run(logic)
 
+	switch v := result.(type) {
+	case bool:
+		return []byte(cast.ToString(v)), jsonparser.Boolean
+	case int:
+		return []byte(cast.ToString(v)), jsonparser.Number
+	case float64:
+		return []byte(cast.ToString(v)), jsonparser.Number
+	case string:
+		return []byte(cast.ToString(v)), jsonparser.String
+	default:
+		return []byte(cast.ToString(v)), jsonparser.String
+	}
+
+}
+
+func (p *JSONGOFPDF) GetAttribute(name string, logic string, debug bool) (value []byte, dataType jsonparser.ValueType, offset int, err error) {
+
+	// TODO Parse variables e.g. we can get a variable but it may be something like {"var": "something"} and it should return the correct value
 	value, dataType, offset, err = jsonparser.Get([]byte(logic), name)
+	if dataType == jsonparser.Object {
+		// p.RunOperation(pdf, string(key), string(value))
+		value, dataType = p.ParseAttribute(string(value))
+	}
 	// TODO Determine if the getvalues has actually given something or if we should take the straight out value? or maybe that's already done as getvalues detects the type
 	// attr := jsonlogic.GetValues(string(value), `{"test":"4"}`)
 	// value = []byte(attr)
@@ -398,14 +391,6 @@ func GetAttribute(name string, logic string, debug bool) (value []byte, dataType
 
 	// Here we can get the attribute from the object and if it matches any logic operations then we run them
 	return value, dataType, offset, err
-}
-
-// Apply is the entry function to parse logic and optional data
-func Apply(logic string, data []ItemData) (opdf *gofpdf.Fpdf, errs error) {
-	pdf := new(gofpdf.Fpdf)
-	result, err := RunOperations(pdf, logic, data)
-
-	return result, err
 }
 
 type ImageFile struct {
@@ -417,7 +402,7 @@ type ImageFile struct {
 }
 
 // GetImage returns a File type containing the hex version of the image with associated meta information
-func GetImage(FileName string) (f ImageFile, Err error) {
+func (p *JSONGOFPDF) GetImage(FileName string) (f ImageFile, Err error) {
 
 	FoundFile := ImageFile{}
 
@@ -454,13 +439,13 @@ func GetImage(FileName string) (f ImageFile, Err error) {
 	// Only parse for supported functions
 	switch FoundFile.Type {
 	case "jpg":
-		FoundFile.Width, FoundFile.Height = GetJpgDimensions(File)
+		FoundFile.Width, FoundFile.Height = p.GetJpgDimensions(File)
 	case "gif":
-		FoundFile.Width, FoundFile.Height = GetGifDimensions(File)
+		FoundFile.Width, FoundFile.Height = p.GetGifDimensions(File)
 	case "png":
-		FoundFile.Width, FoundFile.Height = GetPngDimensions(File)
+		FoundFile.Width, FoundFile.Height = p.GetPngDimensions(File)
 	case "bmp":
-		FoundFile.Width, FoundFile.Height = GetBmpDimensions(File)
+		FoundFile.Width, FoundFile.Height = p.GetBmpDimensions(File)
 	default:
 		return FoundFile, err
 	}
@@ -468,7 +453,7 @@ func GetImage(FileName string) (f ImageFile, Err error) {
 	return FoundFile, nil
 }
 
-func GetJpgDimensions(file *os.File) (width int, height int) {
+func (p *JSONGOFPDF) GetJpgDimensions(file *os.File) (width int, height int) {
 	fi, _ := file.Stat()
 	fileSize := fi.Size()
 
@@ -491,7 +476,7 @@ func GetJpgDimensions(file *os.File) (width int, height int) {
 	return 0, 0
 }
 
-func GetGifDimensions(file *os.File) (width int, height int) {
+func (p *JSONGOFPDF) GetGifDimensions(file *os.File) (width int, height int) {
 	bytes := make([]byte, 4)
 	file.ReadAt(bytes, 6)
 	width = int(bytes[0]) + int(bytes[1])*256
@@ -499,7 +484,7 @@ func GetGifDimensions(file *os.File) (width int, height int) {
 	return
 }
 
-func GetBmpDimensions(file *os.File) (width int, height int) {
+func (p *JSONGOFPDF) GetBmpDimensions(file *os.File) (width int, height int) {
 	bytes := make([]byte, 8)
 	file.ReadAt(bytes, 18)
 	width = int(bytes[3])<<24 | int(bytes[2])<<16 | int(bytes[1])<<8 | int(bytes[0])
@@ -507,7 +492,7 @@ func GetBmpDimensions(file *os.File) (width int, height int) {
 	return
 }
 
-func GetPngDimensions(file *os.File) (width int, height int) {
+func (p *JSONGOFPDF) GetPngDimensions(file *os.File) (width int, height int) {
 	bytes := make([]byte, 8)
 	file.ReadAt(bytes, 16)
 	width = int(bytes[0])<<24 | int(bytes[1])<<16 | int(bytes[2])<<8 | int(bytes[3])
