@@ -4,8 +4,8 @@ import (
 	"errors"
 
 	alpaca "github.com/GeorgeD19/alpaca-go"
-	"github.com/GeorgeD19/backup/repository/helper"
-	"github.com/GeorgeD19/backup/repository/model"
+	"github.com/GeorgeD19/securigroupgo/repository/helper"
+	"github.com/GeorgeD19/securigroupgo/repository/model"
 )
 
 var (
