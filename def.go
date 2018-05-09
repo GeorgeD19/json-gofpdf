@@ -33,6 +33,7 @@ type JSONGOFPDF struct {
 	currentY   float64
 	nextY      float64
 	tr         func(string) string
+	DataIndex  int
 }
 
 type JSONGOFPDFOptions struct {
