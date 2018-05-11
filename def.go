@@ -29,14 +29,22 @@ type JSONGOFPDF struct {
 	DocWidth     float64
 	initY        float64
 	initX        float64
-	currentX     float64
-	currentY     float64
 	nextY        float64
 	tr           func(string) string
 	DataIndex    int
 	NewPage      bool
 	currentPage  int
 	HeaderHeight float64
+	// Row options
+	RowIndex       int
+	RowHeight      float64
+	RowCells       float64
+	CurrentX       float64
+	CurrentY       float64
+	CurrentRowX    float64
+	CurrentRowY    float64
+	NextY          float64
+	PrevCellHeight float64
 }
 
 type JSONGOFPDFOptions struct {
@@ -54,4 +62,12 @@ type RowOptions struct {
 	CurrentY       float64
 	NextY          float64
 	PrevCellHeight float64
+}
+
+type ImageFile struct {
+	Data   string
+	Width  int
+	Height int
+	Type   string
+	Mime   string
 }
