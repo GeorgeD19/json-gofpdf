@@ -275,7 +275,7 @@ func (p *JSONGOFPDF) GetFormValue(logic string) (res interface{}) {
 			return cast.ToString(user.Name)
 			break
 		case "created_at":
-			return cast.ToString(p.Form.CreatedAt.Format("02/01/2006 03:04:05"))
+			return cast.ToString(p.Form.CreatedAt.Format("02/01/2006 15:04:05"))
 			break
 		}
 	}
@@ -294,7 +294,7 @@ func (p *JSONGOFPDF) GetSubmissionValue(logic string) (res interface{}) {
 			return cast.ToString(user.Name)
 			break
 		case "created_at":
-			return cast.ToString(p.Submission.CreatedAt.Format("02/01/2006 03:04:05"))
+			return cast.ToString(p.Submission.CreatedAt.Format("02/01/2006 15:04:05"))
 			break
 		}
 	}
