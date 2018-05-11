@@ -3,7 +3,6 @@ package jsongofpdf
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"strings"
 
 	"github.com/GeorgeD19/json-logic-go"
@@ -19,6 +18,7 @@ func New(options JSONGOFPDFOptions) (*JSONGOFPDF, error) {
 	jsongofpdf.Logic = options.Logic
 	jsongofpdf.Parser = options.Parser
 	jsongofpdf.Form = options.Form
+	jsongofpdf.Submission = options.Submission
 	jsongofpdf.currentPage = 0
 	jsongofpdf.DPI = 18
 
@@ -246,7 +246,11 @@ func (p *JSONGOFPDF) RunValue(name string, logic string, row RowOptions) (val []
 
 		break
 	case "form":
-		result := p.GetForm(logic)
+		result := p.GetFormValue(logic)
+		return []byte(cast.ToString(result)), jsonparser.String
+		break
+	case "submission":
+		result := p.GetSubmissionValue(logic)
 		return []byte(cast.ToString(result)), jsonparser.String
 		break
 	default:
@@ -257,7 +261,7 @@ func (p *JSONGOFPDF) RunValue(name string, logic string, row RowOptions) (val []
 }
 
 // GetForm returns supported attributes from the passed form
-func (p *JSONGOFPDF) GetForm(logic string) (res interface{}) {
+func (p *JSONGOFPDF) GetFormValue(logic string) (res interface{}) {
 	if p.Form != nil {
 		switch logic {
 		case "title":
@@ -272,6 +276,25 @@ func (p *JSONGOFPDF) GetForm(logic string) (res interface{}) {
 			break
 		case "created_at":
 			return cast.ToString(p.Form.CreatedAt.Format("02/01/2006 03:04:05"))
+			break
+		}
+	}
+	return nil
+}
+
+// GetForm returns supported attributes from the passed form
+func (p *JSONGOFPDF) GetSubmissionValue(logic string) (res interface{}) {
+	if p.Submission != nil {
+		switch logic {
+		case "created_by":
+			user, err := data.GetUserItem(p.Submission.CreatedBy)
+			if err != nil {
+				return ""
+			}
+			return cast.ToString(user.Name)
+			break
+		case "created_at":
+			return cast.ToString(p.Submission.CreatedAt.Format("02/01/2006 03:04:05"))
 			break
 		}
 	}
@@ -324,8 +347,8 @@ func (p *JSONGOFPDF) CellFormField(pdf *gofpdf.Fpdf, logic string, row RowOption
 	case "value":
 		pdf.CellFormat(width, height, p.tr(strings.Replace(cast.ToString(field.Value), "<br>", "\n", -1)), border, line, align, fill, link, linkStr)
 
-		fmt.Println("Media displayed below")
-		fmt.Println(field.Media)
+		// fmt.Println("Media displayed below")
+		// fmt.Println(field.Media)
 		for _, image := range field.Media {
 
 			// For any media against the field
