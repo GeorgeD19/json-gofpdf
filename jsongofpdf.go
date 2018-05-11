@@ -265,7 +265,7 @@ func (p *JSONGOFPDF) GetForm(logic string) (res interface{}) {
 			return cast.ToString(p.Form.CreatedBy)
 			break
 		case "created_at":
-			return cast.ToString(p.Form.CreatedAt)
+			return cast.ToString(p.Form.CreatedAt.Format("02/01/2006 03:04:05"))
 			break
 		}
 	}
