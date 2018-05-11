@@ -45,6 +45,8 @@ type JSONGOFPDF struct {
 	CurrentRowY    float64
 	NextY          float64
 	PrevCellHeight float64
+	MediaIndex     int
+	DPI            int
 }
 
 type JSONGOFPDFOptions struct {

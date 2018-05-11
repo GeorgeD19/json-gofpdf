@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/GeorgeD19/json-logic-go"
+	"github.com/GeorgeD19/securigroupgo/repository/data"
 	"github.com/buger/jsonparser"
 	"github.com/jung-kurt/gofpdf"
 	"github.com/spf13/cast"
@@ -19,6 +20,7 @@ func New(options JSONGOFPDFOptions) (*JSONGOFPDF, error) {
 	jsongofpdf.Parser = options.Parser
 	jsongofpdf.Form = options.Form
 	jsongofpdf.currentPage = 0
+	jsongofpdf.DPI = 18
 
 	return jsongofpdf, nil
 }
@@ -101,8 +103,8 @@ func (p *JSONGOFPDF) RunOperation(pdf *gofpdf.Fpdf, name string, logic string, r
 	p.CurrentX = pdf.GetX()
 	p.CurrentY = pdf.GetY()
 
-	fmt.Printf("CurrentX: %v, CurrentY: %v, Operation: %v, Page: %v", p.CurrentX, p.CurrentY, name, p.currentPage)
-	fmt.Println("")
+	// fmt.Printf("CurrentX: %v, CurrentY: %v, Operation: %v, Page: %v", p.CurrentX, p.CurrentY, name, p.currentPage)
+	// fmt.Println("")
 
 	nRow = row
 	switch name {
@@ -262,7 +264,11 @@ func (p *JSONGOFPDF) GetForm(logic string) (res interface{}) {
 			return p.Form.Title
 			break
 		case "created_by":
-			return cast.ToString(p.Form.CreatedBy)
+			user, err := data.GetUserItem(p.Form.CreatedBy)
+			if err != nil {
+				return ""
+			}
+			return cast.ToString(user.Name)
 			break
 		case "created_at":
 			return cast.ToString(p.Form.CreatedAt.Format("02/01/2006 03:04:05"))
@@ -309,6 +315,8 @@ func (p *JSONGOFPDF) CellFormField(pdf *gofpdf.Fpdf, logic string, row RowOption
 		}
 	}
 
+	CurrentX := pdf.GetX()
+
 	switch attribute {
 	case "title":
 		pdf.CellFormat(width, height, p.tr(strings.Replace(field.Title, "<br>", "\n", -1)), border, line, align, fill, link, linkStr)
@@ -316,14 +324,24 @@ func (p *JSONGOFPDF) CellFormField(pdf *gofpdf.Fpdf, logic string, row RowOption
 	case "value":
 		pdf.CellFormat(width, height, p.tr(strings.Replace(cast.ToString(field.Value), "<br>", "\n", -1)), border, line, align, fill, link, linkStr)
 
-		// for _, image := range field.Media {
+		fmt.Println("Media displayed below")
+		fmt.Println(field.Media)
+		for _, image := range field.Media {
 
-		// 	// For any media against the field
-		// 	ImageDecoded, _ := hex.DecodeString(image.Data)
+			// For any media against the field
+			imageDecoded, _ := hex.DecodeString(image.Data)
+			options := gofpdf.ImageOptions{
+				ReadDpi:   false,
+				ImageType: image.Type,
+			}
 
-		// }
-
+			// Pass binary image into PDF
+			pdf.RegisterImageOptionsReader(string(p.MediaIndex), options, bytes.NewReader(imageDecoded))
+			pdf.ImageOptions(string(p.MediaIndex), CurrentX, pdf.GetY(), width, 0, true, options, -1, "")
+			p.MediaIndex++
+		}
 	}
+
 	return pdf
 }
 
@@ -352,8 +370,6 @@ func (p *JSONGOFPDF) MultiCellFormField(pdf *gofpdf.Fpdf, logic string, row RowO
 		height = p.RowHeight
 	}
 
-	// preRenderHeight := pdf.GetY()
-
 	if field.Key != "" {
 		switch attribute {
 		case "title":
@@ -365,24 +381,14 @@ func (p *JSONGOFPDF) MultiCellFormField(pdf *gofpdf.Fpdf, logic string, row RowO
 				p.RowCells = cellCount
 			}
 
-			// if p.RowCells > cellCount {
-
-			// 	// Update text string appending blank spaces based on the difference between
-			// 	difference := p.RowCells - cellCount
-			// 	cellCount = p.RowCells
-
-			// 	for index := 0; index < int(difference); index++ {
-			// 		text += "\n"
-			// 	}
-
-			// }
-
 			cellHeight := height / cellCount
 
 			// Line height = number of cells / total height
 			pdf.MultiCell(width, cellHeight, p.tr(strings.Replace(field.Title, "<br>", "\n", -1)), border, align, fill)
 			break
 		case "value":
+
+			CurrentX := pdf.GetX()
 
 			text := p.tr(strings.Replace(cast.ToString(field.Value), "<br>", "\n", -1))
 			cellList := pdf.SplitLines([]byte(text), width)
@@ -395,22 +401,32 @@ func (p *JSONGOFPDF) MultiCellFormField(pdf *gofpdf.Fpdf, logic string, row RowO
 				p.RowCells = cellCount
 			}
 
-			// if p.RowCells > cellCount {
-			// 	difference := p.RowCells - cellCount
-			// 	cellCount = p.RowCells
-
-			// 	for index := 0; index < int(difference); index++ {
-			// 		text += "\n"
-			// 	}
-			// }
-
 			cellHeight := height / cellCount
 
 			pdf.MultiCell(width, cellHeight, text, border, align, fill)
-			// for _, image := range field.Media {
-			// 	// For any media against the field
-			// 	ImageDecoded, _ := hex.DecodeString(image.Data)
-			// }
+
+			for _, image := range field.Media {
+
+				// For any media against the field
+				imageDecoded, _ := hex.DecodeString(image.Data)
+				options := gofpdf.ImageOptions{
+					ReadDpi:   false,
+					ImageType: image.Type,
+				}
+
+				imageWidth := float64(image.Width) / float64(p.DPI)
+				imageHeight := float64(image.Height) / float64(p.DPI)
+
+				if imageWidth > width {
+					imageWidth = width
+					imageHeight = 0
+				}
+
+				// Pass binary image into PDF
+				pdf.RegisterImageOptionsReader(string(p.MediaIndex), options, bytes.NewReader(imageDecoded))
+				pdf.ImageOptions(string(p.MediaIndex), CurrentX, pdf.GetY(), imageWidth, imageHeight, true, options, -1, "")
+				p.MediaIndex++
+			}
 		}
 	}
 
@@ -447,13 +463,7 @@ func (p *JSONGOFPDF) FormFunc(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf
 
 	n := 2
 	if main != "" {
-		// FormFunc needs it's own index counter for form fields so it doesn't interfere on any other page / section
 		if alternative != "" {
-			// nRow.CurrentY = pdf.GetY()
-
-			// p.CurrentY = pdf.GetY()
-
-			// nRow := RowOptions{Index: 0, CurrentY: pdf.GetY()}
 			for x := 0; x < len(p.Parser.FieldRegistry); x++ {
 
 				nRow.PrevCellHeight = 0
@@ -476,13 +486,7 @@ func (p *JSONGOFPDF) FormFunc(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf
 				p.CurrentRowY = pdf.GetY()
 			}
 		} else {
-			// nRow.CurrentY = pdf.GetY()
-			// p.CurrentY = pdf.GetY()
-
-			// nRow := RowOptions{Index: 0, CurrentY: pdf.GetY()}
 			for x := 0; x < len(p.Parser.FieldRegistry); x++ {
-
-				// TODO run a height pass on the row before running operations
 
 				nRow.PrevCellHeight = 0
 				p.PrevCellHeight = 0
