@@ -340,28 +340,32 @@ func (p *JSONGOFPDF) CellFormField(pdf *gofpdf.Fpdf, logic string, row RowOption
 
 	CurrentX := pdf.GetX()
 
-	switch attribute {
-	case "title":
-		pdf.CellFormat(width, height, p.tr(strings.Replace(field.Title, "<br>", "\n", -1)), border, line, align, fill, link, linkStr)
-		break
-	case "value":
-		pdf.CellFormat(width, height, p.tr(strings.Replace(cast.ToString(field.Value), "<br>", "\n", -1)), border, line, align, fill, link, linkStr)
+	if field.Value != nil || field.Media != nil {
+		// fmt.Println(field.Key)
+		// fmt.Println(field.Value)
+		switch attribute {
+		case "title":
+			pdf.CellFormat(width, height, p.tr(strings.Replace(field.Title, "<br>", "\n", -1)), border, line, align, fill, link, linkStr)
+			break
+		case "value":
+			pdf.CellFormat(width, height, p.tr(strings.Replace(cast.ToString(field.Value), "<br>", "\n", -1)), border, line, align, fill, link, linkStr)
 
-		// fmt.Println("Media displayed below")
-		// fmt.Println(field.Media)
-		for _, image := range field.Media {
+			// fmt.Println("Media displayed below")
+			// fmt.Println(field.Media)
+			for _, image := range field.Media {
 
-			// For any media against the field
-			imageDecoded, _ := hex.DecodeString(image.Data)
-			options := gofpdf.ImageOptions{
-				ReadDpi:   false,
-				ImageType: image.Type,
+				// For any media against the field
+				imageDecoded, _ := hex.DecodeString(image.Data)
+				options := gofpdf.ImageOptions{
+					ReadDpi:   false,
+					ImageType: image.Type,
+				}
+
+				// Pass binary image into PDF
+				pdf.RegisterImageOptionsReader(string(p.MediaIndex), options, bytes.NewReader(imageDecoded))
+				pdf.ImageOptions(string(p.MediaIndex), CurrentX, pdf.GetY(), width, 0, true, options, -1, "")
+				p.MediaIndex++
 			}
-
-			// Pass binary image into PDF
-			pdf.RegisterImageOptionsReader(string(p.MediaIndex), options, bytes.NewReader(imageDecoded))
-			pdf.ImageOptions(string(p.MediaIndex), CurrentX, pdf.GetY(), width, 0, true, options, -1, "")
-			p.MediaIndex++
 		}
 	}
 
@@ -393,62 +397,67 @@ func (p *JSONGOFPDF) MultiCellFormField(pdf *gofpdf.Fpdf, logic string, row RowO
 		height = p.RowHeight
 	}
 
+	// fmt.Println(field.Key)
+
 	if field.Key != "" {
-		switch attribute {
-		case "title":
-			text := p.tr(strings.Replace(field.Title, "<br>", "\n", -1))
-			cellList := pdf.SplitLines([]byte(text), width)
-			cellCount := float64(len(cellList))
+		if cast.ToString(field.Value) != "" || field.Media != nil {
 
-			if cellCount > p.RowCells {
-				p.RowCells = cellCount
-			}
+			switch attribute {
+			case "title":
+				text := p.tr(strings.Replace(field.Title, "<br>", "\n", -1))
+				cellList := pdf.SplitLines([]byte(text), width)
+				cellCount := float64(len(cellList))
 
-			cellHeight := height / cellCount
-
-			// Line height = number of cells / total height
-			pdf.MultiCell(width, cellHeight, p.tr(strings.Replace(field.Title, "<br>", "\n", -1)), border, align, fill)
-			break
-		case "value":
-
-			CurrentX := pdf.GetX()
-
-			text := p.tr(strings.Replace(cast.ToString(field.Value), "<br>", "\n", -1))
-			cellList := pdf.SplitLines([]byte(text), width)
-			cellCount := float64(len(cellList))
-			if cellCount < 1 {
-				cellCount = 1
-			}
-
-			if cellCount > p.RowCells {
-				p.RowCells = cellCount
-			}
-
-			cellHeight := height / cellCount
-
-			pdf.MultiCell(width, cellHeight, text, border, align, fill)
-
-			for _, image := range field.Media {
-
-				// For any media against the field
-				imageDecoded, _ := hex.DecodeString(image.Data)
-				options := gofpdf.ImageOptions{
-					ReadDpi:   false,
-					ImageType: image.Type,
+				if cellCount > p.RowCells {
+					p.RowCells = cellCount
 				}
 
-				imageWidth := float64(image.Width) / float64(p.DPI)
-				imageHeight := float64(image.Height) / float64(p.DPI)
+				cellHeight := height / cellCount
 
-				if imageWidth > width {
-					imageWidth = width
-					imageHeight = 0
+				// Line height = number of cells / total height
+				pdf.MultiCell(width, cellHeight, p.tr(strings.Replace(field.Title, "<br>", "\n", -1)), border, align, fill)
+				break
+			case "value":
+
+				CurrentX := pdf.GetX()
+
+				text := p.tr(strings.Replace(cast.ToString(field.Value), "<br>", "\n", -1))
+				cellList := pdf.SplitLines([]byte(text), width)
+				cellCount := float64(len(cellList))
+				if cellCount < 1 {
+					cellCount = 1
 				}
 
-				// Pass binary image into PDF
-				pdf.RegisterImageOptionsReader(string(p.MediaIndex), options, bytes.NewReader(imageDecoded))
-				pdf.ImageOptions(string(p.MediaIndex), CurrentX, pdf.GetY(), imageWidth, imageHeight, true, options, -1, "")
-				p.MediaIndex++
+				if cellCount > p.RowCells {
+					p.RowCells = cellCount
+				}
+
+				cellHeight := height / cellCount
+
+				pdf.MultiCell(width, cellHeight, text, border, align, fill)
+
+				for _, image := range field.Media {
+
+					// For any media against the field
+					imageDecoded, _ := hex.DecodeString(image.Data)
+					options := gofpdf.ImageOptions{
+						ReadDpi:   false,
+						ImageType: image.Type,
+					}
+
+					imageWidth := float64(image.Width) / float64(p.DPI)
+					imageHeight := float64(image.Height) / float64(p.DPI)
+
+					if imageWidth > width {
+						imageWidth = width
+						imageHeight = 0
+					}
+
+					// Pass binary image into PDF
+					pdf.RegisterImageOptionsReader(string(p.MediaIndex), options, bytes.NewReader(imageDecoded))
+					pdf.ImageOptions(string(p.MediaIndex), CurrentX, pdf.GetY(), imageWidth, imageHeight, true, options, -1, "")
+					p.MediaIndex++
+				}
 			}
 		}
 	}
