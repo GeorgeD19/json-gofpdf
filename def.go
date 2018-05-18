@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	alpaca "github.com/GeorgeD19/alpaca-go"
-	"github.com/GeorgeD19/securigroupgo/repository/helper"
 	"github.com/GeorgeD19/securigroupgo/repository/model"
 )
 
@@ -20,7 +19,7 @@ type JSONGOFPDF struct {
 	Submission   *model.Submission
 	Form         *model.Form
 	Parser       *alpaca.Alpaca
-	User         helper.User
+	User         model.User
 	ColCount     int
 	MarginRw     float64
 	MarginH      float64
@@ -56,7 +55,7 @@ type JSONGOFPDFOptions struct {
 	Submission *model.Submission
 	Form       *model.Form
 	Parser     *alpaca.Alpaca
-	User       helper.User
+	User       model.User
 }
 
 type RowOptions struct {
