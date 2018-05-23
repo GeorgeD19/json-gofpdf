@@ -3,6 +3,7 @@ package jsongofpdf
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"strings"
 
 	"github.com/GeorgeD19/json-logic-go"
@@ -19,7 +20,9 @@ func New(options JSONGOFPDFOptions) (*JSONGOFPDF, error) {
 	jsongofpdf.Parser = options.Parser
 	jsongofpdf.Form = options.Form
 	jsongofpdf.Submission = options.Submission
+	jsongofpdf.Tables = options.Tables
 	jsongofpdf.currentPage = 0
+	jsongofpdf.Globals = options.Globals
 	jsongofpdf.DPI = 18
 
 	return jsongofpdf, nil
@@ -93,6 +96,9 @@ func (p *JSONGOFPDF) PreOperation(pdf *gofpdf.Fpdf, name string, logic string) (
 	switch name {
 	case "multicellformfield":
 		p.PreMultiCellFormField(pdf, logic)
+		break
+	case "multicell":
+		p.PreRowMultiCell(pdf, logic)
 		break
 	}
 	return pdf
@@ -177,6 +183,9 @@ func (p *JSONGOFPDF) RunOperation(pdf *gofpdf.Fpdf, name string, logic string, r
 	case "setdrawcolor":
 		pdf = p.SetDrawColor(pdf, logic)
 		break
+	case "tablefunc":
+		pdf, _ = p.TableFunc(pdf, logic)
+		break
 	case "formfunc":
 		pdf, _ = p.FormFunc(pdf, logic)
 		break
@@ -185,6 +194,9 @@ func (p *JSONGOFPDF) RunOperation(pdf *gofpdf.Fpdf, name string, logic string, r
 		break
 	case "image":
 		pdf = p.Image(pdf, logic)
+		break
+	case "multicell":
+		pdf = p.MultiCell(pdf, logic)
 		break
 	case "cellformfield":
 		pdf = p.CellFormField(pdf, logic, nRow)
@@ -372,6 +384,105 @@ func (p *JSONGOFPDF) CellFormField(pdf *gofpdf.Fpdf, logic string, row RowOption
 	return pdf
 }
 
+func (p *JSONGOFPDF) MultiCell(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	attribute := p.GetString("attribute", logic, "")
+	target := p.GetString("target", logic, "")
+
+	width := p.GetFloat("width", logic, 0.0)
+	height := p.GetFloat("height", logic, 0.0) // Line height of each cell, not cell height
+	border := p.GetString("border", logic, "")
+	align := p.GetString("align", logic, "L")
+	text := p.GetString("text", logic, "")
+	fill := p.GetBool("fill", logic, false)
+
+	cell := p.Tables[p.TableIndex].Rows[p.RowIndex].Cells[p.CellIndex]
+	for _, row := range p.Tables[p.TableIndex].Rows {
+		for _, rowCell := range row.Cells {
+			if rowCell.Key == target || rowCell.Path == target {
+				cell = rowCell
+			}
+		}
+	}
+
+	if text != "" {
+		cell = Cell{
+			Value: text,
+		}
+	}
+
+	for index, value := range p.Globals {
+		if index == target {
+			cell = Cell{
+				Path:  index,
+				Key:   index,
+				Title: index,
+				Value: value,
+			}
+		}
+	}
+
+	if p.RowHeight > height {
+		height = p.RowHeight
+	}
+
+	switch attribute {
+	case "title":
+		text := p.tr(strings.Replace(cell.Title, "<br>", "\n", -1))
+		cellList := pdf.SplitLines([]byte(text), width)
+		cellCount := float64(len(cellList))
+
+		if cellCount > p.RowCells {
+			p.RowCells = cellCount
+		}
+
+		cellHeight := height / cellCount
+
+		pdf.MultiCell(width, cellHeight, p.tr(strings.Replace(cell.Title, "<br>", "\n", -1)), border, align, fill)
+		break
+	case "value":
+		// CurrentX := pdf.GetX()
+
+		text := p.tr(strings.Replace(cast.ToString(cell.Value), "<br>", "\n", -1))
+		cellList := pdf.SplitLines([]byte(text), width)
+		cellCount := float64(len(cellList))
+		if cellCount < 1 {
+			cellCount = 1
+		}
+
+		if cellCount > p.RowCells {
+			p.RowCells = cellCount
+		}
+
+		cellHeight := height / cellCount
+
+		pdf.MultiCell(width, cellHeight, text, border, align, fill)
+		break
+	default:
+		text := p.tr(strings.Replace(cast.ToString(cell.Value), "<br>", "\n", -1))
+		cellList := pdf.SplitLines([]byte(text), width)
+		cellCount := float64(len(cellList))
+
+		if cellCount > p.RowCells {
+			p.RowCells = cellCount
+		}
+
+		cellHeight := height / cellCount
+
+		pdf.MultiCell(width, cellHeight, text, border, align, fill)
+		break
+	}
+
+	CurrentY := pdf.GetY()
+	if CurrentY > p.NextY {
+		p.NextY = CurrentY
+	}
+
+	// p.CurrentX = pdf.GetX()
+	// fmt.Println(p.CurrentX)
+
+	return pdf
+}
+
 func (p *JSONGOFPDF) MultiCellFormField(pdf *gofpdf.Fpdf, logic string, row RowOptions) (opdf *gofpdf.Fpdf, nRow RowOptions) {
 	nRow = row
 
@@ -477,9 +588,10 @@ func (p *JSONGOFPDF) MultiCellFormField(pdf *gofpdf.Fpdf, logic string, row RowO
 	return pdf, nRow
 }
 
+// UpdateX sets current pdfX position to currentX position plus what is passed.
 func (p *JSONGOFPDF) UpdateX(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	width := p.GetFloat("width", logic, 0.0)
-	pdf.SetX(pdf.GetX() + width)
+	pdf.SetX(p.CurrentX + p.GetFloat("width", logic, 0.0))
+	fmt.Println(pdf.GetX())
 	return pdf
 }
 
@@ -487,6 +599,61 @@ func (p *JSONGOFPDF) UpdateY(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf)
 	height := p.GetFloat("height", logic, 0.0)
 	pdf.SetY(pdf.GetY() + height)
 	return pdf
+}
+
+// TableFunc uses json to render out a table using the passed data in the options.
+func (p *JSONGOFPDF) TableFunc(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf, nRow RowOptions) {
+	p.TableIndex = p.GetInt("index", logic, 0)
+	pdf, nRow = p.Body(pdf, p.GetString("body", logic, ""))
+	p.TableIndex = 0
+	return pdf, nRow
+}
+
+// Body iterates over the table rows and renders the table based on the passed operations.
+func (p *JSONGOFPDF) Body(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf, nRow RowOptions) {
+	// We store the logic of each row logic so we can alternate between each
+	rowLogic := make([]string, 0)
+	jsonparser.ArrayEach([]byte(logic), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+		switch dataType {
+		case jsonparser.Object:
+			// Operations that will be performed on every cell in this row
+			operations := p.GetString("row", string(value), "")
+			if operations != "" {
+				rowLogic = append(rowLogic, operations)
+			}
+			break
+		}
+	})
+
+	// Then foreach table.rows we can alternate between each function using RowIndex which resets on each new table.row
+	if len(rowLogic) > 0 {
+		for x := 0; x < len(p.Tables[p.TableIndex].Rows); x++ {
+
+			p.RowIndex = x
+			p.PrevCellHeight = 0
+			p.RowHeight = 0
+			p.RowCells = 0.0
+			p.CellIndex = 0
+
+			for y := 0; y < len(p.Tables[p.TableIndex].Rows[x].Cells); y++ {
+				p.PreOperations(pdf, rowLogic[p.RowFuncIndex])
+				pdf, nRow = p.RunOperations(pdf, rowLogic[p.RowFuncIndex], nRow)
+				p.CellIndex++
+			}
+
+			if (p.RowFuncIndex + 1) < len(rowLogic) {
+				p.RowFuncIndex++
+			} else {
+				p.RowFuncIndex = 0
+			}
+			if p.NextY > p.CurrentY {
+				p.CurrentY = p.nextY
+			}
+			p.CurrentRowY = pdf.GetY()
+		}
+	}
+
+	return pdf, nRow
 }
 
 func (p *JSONGOFPDF) FormFunc(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf, nRow RowOptions) {
@@ -597,4 +764,28 @@ func (p *JSONGOFPDF) GetAttributeIndex(name string, logic string, debug bool, ro
 		value, dataType = p.ParseObjectValue(string(value), row)
 	}
 	return value, dataType, offset, err
+}
+
+func (p *JSONGOFPDF) GetY(pdf *gofpdf.Fpdf) (opdf *gofpdf.Fpdf) {
+	fmt.Println(pdf.GetY())
+	return pdf
+}
+
+func (p *JSONGOFPDF) SetInitY(pdf *gofpdf.Fpdf, logic string, row RowOptions) (opdf *gofpdf.Fpdf, nRow RowOptions) {
+	nRow = row
+	pdf.SetY(p.initY)
+	nRow.NextY = p.initY
+	return pdf, nRow
+}
+
+// SetXCurrentX sets pdfX to CurrentX position
+func (p *JSONGOFPDF) SetXCurrentX(pdf *gofpdf.Fpdf, row RowOptions) (opdf *gofpdf.Fpdf) {
+	pdf.SetX(p.CurrentX)
+	return pdf
+}
+
+// RowY sets pdf Y to CurrentRowY position
+func (p *JSONGOFPDF) RowY(pdf *gofpdf.Fpdf, row RowOptions) (opdf *gofpdf.Fpdf) {
+	pdf.SetY(p.CurrentRowY)
+	return pdf
 }

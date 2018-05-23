@@ -2,6 +2,7 @@ package jsongofpdf
 
 import (
 	"errors"
+	"time"
 
 	alpaca "github.com/GeorgeD19/alpaca-go"
 	"github.com/GeorgeD19/securigroupgo/repository/model"
@@ -34,10 +35,18 @@ type JSONGOFPDF struct {
 	NewPage      bool
 	currentPage  int
 	HeaderHeight float64
+
+	Globals map[string]string
+	// Table options
+	Tables     []Table
+	TableIndex int
 	// Row options
-	RowIndex       int
-	RowHeight      float64
-	RowCells       float64
+	RowFuncIndex int
+	RowIndex     int
+	RowHeight    float64
+	RowCells     float64
+	// Cell options
+	CellIndex      int
 	CurrentX       float64
 	CurrentY       float64
 	CurrentRowX    float64
@@ -56,6 +65,8 @@ type JSONGOFPDFOptions struct {
 	Form       *model.Form
 	Parser     *alpaca.Alpaca
 	User       model.User
+	Tables     []Table
+	Globals    map[string]string
 }
 
 type RowOptions struct {
@@ -65,10 +76,35 @@ type RowOptions struct {
 	PrevCellHeight float64
 }
 
+type File struct {
+	Data    string
+	Type    string
+	Mime    string
+	Name    string
+	Created time.Time
+}
+
 type ImageFile struct {
 	Data   string
-	Width  int
-	Height int
 	Type   string
 	Mime   string
+	Name   string
+	Width  int
+	Height int
+}
+
+type Table struct {
+	Rows []Row
+}
+
+type Row struct {
+	Cells []Cell
+}
+
+type Cell struct {
+	Path   string
+	Key    string
+	Title  string
+	Value  interface{}
+	Images []ImageFile
 }

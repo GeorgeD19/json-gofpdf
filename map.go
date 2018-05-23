@@ -1,7 +1,6 @@
 package jsongofpdf
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/jung-kurt/gofpdf"
@@ -37,158 +36,125 @@ func (p *JSONGOFPDF) New(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	return gofpdf.New(orientation, unit, size, directory)
 }
 
-func (p *JSONGOFPDF) SetInitY(pdf *gofpdf.Fpdf, logic string, row RowOptions) (opdf *gofpdf.Fpdf, nRow RowOptions) {
-	nRow = row
-	pdf.SetY(p.initY)
-	nRow.NextY = p.initY
-	return pdf, nRow
-}
-
-// SetMargins passes the left, top and right object properties to the gofpdf SetMargins function affecting the working pdf
-func (p *JSONGOFPDF) SetMargins(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	left := p.GetFloat("left", logic, 0.0)
-	top := p.GetFloat("top", logic, 0.0)
-	right := p.GetFloat("right", logic, 0.0)
-	pdf.SetMargins(left, top, right)
-	return pdf
-}
-
+// SetCellMargin maps json to gofpdf SetCellMargin function.
+// Default is "margin": 0.0
 func (p *JSONGOFPDF) SetCellMargin(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	margin := p.GetFloat("margin", logic, 0.0)
-	pdf.SetCellMargin(margin)
+	pdf.SetCellMargin(p.GetFloat("margin", logic, 0.0))
 	return pdf
 }
 
-func (p *JSONGOFPDF) SetTopMargin(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	margin := p.GetFloat("margin", logic, 0.0)
-	pdf.SetTopMargin(margin)
+// SetLeftMargin maps json to gofpdf SetLeftMargin function. Pass "margin" as a float object property in json logic.
+// Default is "margin": 0.0
+func (p *JSONGOFPDF) SetLeftMargin(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	pdf.SetLeftMargin(p.GetFloat("margin", logic, 0.0))
 	return pdf
 }
 
+// SetMargins maps json to gofpdf SetMargins function. Pass "left", "top" and "right" as float object properties in json logic.
+// Defaults are "left": 0.0, "top": 0.0, "right": 0.0
+func (p *JSONGOFPDF) SetMargins(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	pdf.SetMargins(p.GetFloat("left", logic, 0.0), p.GetFloat("top", logic, 0.0), p.GetFloat("right", logic, 0.0))
+	return pdf
+}
+
+// SetRightMargin maps json to gofpdf SetRightMargin function. Pass "margin" as float object property in json logic.
+// Default is "margin": 0.0
 func (p *JSONGOFPDF) SetRightMargin(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	margin := p.GetFloat("margin", logic, 0.0)
-	pdf.SetRightMargin(margin)
+	pdf.SetRightMargin(p.GetFloat("margin", logic, 0.0))
 	return pdf
 }
 
+// SetTopMargin maps json to gofpdf SetTopMargin function. Pass "margin" as float object property in json logic.
+// Default is "margin": 0.0
+func (p *JSONGOFPDF) SetTopMargin(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	pdf.SetTopMargin(p.GetFloat("margin", logic, 0.0))
+	return pdf
+}
+
+// SetAutoPageBreak maps json to gofpdf SetAutoPageBreak function. Pass "auto" boolean and "margin" float object properties in json logic.
+// Default is "auto": true, "margin": 15.0
 func (p *JSONGOFPDF) SetAutoPageBreak(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	auto := p.GetBool("auto", logic, true)
-	margin := p.GetFloat("margin", logic, 15.0)
-	pdf.SetAutoPageBreak(auto, margin)
+	pdf.SetAutoPageBreak(p.GetBool("auto", logic, true), p.GetFloat("margin", logic, 15.0))
 	return pdf
 }
 
-// SetDisplayMode passes the zoom and layout object properties to the gofpdf SetDisplayMode function affecting the working pdf
+// SetDisplayMode maps json to gofpdf SetDisplayMode function. Pass "zoom" and "layout" string object properties in json logic.
+// Default is "zoom": "", "layout": ""
 func (p *JSONGOFPDF) SetDisplayMode(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	zoomStr := p.GetString("zoom", logic, "")
-	layoutStr := p.GetString("layout", logic, "")
-	pdf.SetDisplayMode(zoomStr, layoutStr)
+	pdf.SetDisplayMode(p.GetString("zoom", logic, ""), p.GetString("layout", logic, ""))
 	return pdf
 }
 
-// SetDefaultCompression passes the compress object property to the gofpdf SetDefaultCompression function affecting the working pdf
-// func (p *JSONGOFPDF) SetDefaultCompression(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-// 	compress := p.GetBool("compress", logic, false)
-// 	pdf.SetDefaultCompression(compress)
-// 	return pdf
-// }
-
+// Ln maps json to gofpdf Ln function. Pass "height" as string object property in json logic.
+// Default is "height": -1.0
 func (p *JSONGOFPDF) Ln(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	height := p.GetFloat("height", logic, -1.0)
-	pdf.Ln(height)
+	pdf.Ln(p.GetFloat("height", logic, -1.0))
 	return pdf
 }
 
+// SetDrawColor maps json to gofpdf SetDrawColor function. Pass "r", "g" and "b" as integer object properties in json logic.
+// Defaults are "r": 0, "g": 0, "b": 0
 func (p *JSONGOFPDF) SetDrawColor(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	r := p.GetInt("r", logic, 0)
-	g := p.GetInt("g", logic, 0)
-	b := p.GetInt("b", logic, 0)
-	pdf.SetDrawColor(r, g, b)
+	pdf.SetDrawColor(p.GetInt("r", logic, 0), p.GetInt("g", logic, 0), p.GetInt("b", logic, 0))
 	return pdf
 }
 
+// SetFillColor maps json to gofpdf SetFillColor function. Pass "r", "g" and "b" as integer object properties in json logic.
+// Defaults are "r": 0, "g": 0, "b": 0
 func (p *JSONGOFPDF) SetFillColor(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	r := p.GetInt("r", logic, 0)
-	g := p.GetInt("g", logic, 0)
-	b := p.GetInt("b", logic, 0)
-	pdf.SetFillColor(r, g, b)
+	pdf.SetFillColor(p.GetInt("r", logic, 0), p.GetInt("g", logic, 0), p.GetInt("b", logic, 0))
 	return pdf
 }
 
+// SetTextColor maps json to gofpdf SetTextColor function. Pass "r", "g" and "b" as integer object properties in json logic.
+// Defaults are "r": 0, "g": 0, "b": 0
 func (p *JSONGOFPDF) SetTextColor(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	r := p.GetInt("r", logic, 0)
-	g := p.GetInt("g", logic, 0)
-	b := p.GetInt("b", logic, 0)
-	pdf.SetTextColor(r, g, b)
+	pdf.SetTextColor(p.GetInt("r", logic, 0), p.GetInt("g", logic, 0), p.GetInt("b", logic, 0))
 	return pdf
 }
 
-// AddPage adds a new page to the pdf
+// AddPage maps json to gofpdf AddPage function. No arguemenets are taken.
 func (p *JSONGOFPDF) AddPage(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	pdf.AddPage()
 	return pdf
 }
 
-// SetFont sets the font for the pdf
+// SetFont maps json to gofpdf SetFont function. Pass in "family" string, "style" string, "size" float properties in json logic.
+// Defaults are "family": "Arial", "style": "", "size", 8.0
 func (p *JSONGOFPDF) SetFont(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	family := p.GetString("family", logic, "Arial")
-	style := p.GetString("style", logic, "")
-	size := p.GetFloat("size", logic, 8.0)
-	pdf.SetFont(family, style, size)
+	pdf.SetFont(p.GetString("family", logic, "Arial"), p.GetString("style", logic, ""), p.GetFloat("size", logic, 8.0))
 	return pdf
 }
 
+// AliasNbPages maps json to gofpdf AliasNbPages function. Pass in "alias" as string object property in json logic.
+// Default is "alias": ""
 func (p *JSONGOFPDF) AliasNbPages(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	aliasStr := p.GetString("alias", logic, "")
-	pdf.AliasNbPages(aliasStr)
+	pdf.AliasNbPages(p.GetString("alias", logic, ""))
 	return pdf
 }
 
-func (p *JSONGOFPDF) SetLeftMargin(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	margin := p.GetFloat("margin", logic, 0.0)
-	pdf.SetLeftMargin(margin)
-	return pdf
-}
-
-func (p *JSONGOFPDF) GetY(pdf *gofpdf.Fpdf) (opdf *gofpdf.Fpdf) {
-	fmt.Println(pdf.GetY())
-	return pdf
-}
-
+// SetY maps json to gofpdf SetY function. Pass "y" as float object property in json logic.
+// Default is "y": 0.0
 func (p *JSONGOFPDF) SetY(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	y := p.GetFloat("y", logic, 0.0)
-	pdf.SetY(y)
+	pdf.SetY(p.GetFloat("y", logic, 0.0))
 	return pdf
 }
 
+// SetX maps json to gofpdf SetX function. Pass "x" as float object property in json logic.
+// Default is "x": 0.0
 func (p *JSONGOFPDF) SetX(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	x := p.GetFloat("x", logic, 0.0)
-	pdf.SetX(x)
+	pdf.SetX(p.GetFloat("x", logic, 0.0))
 	return pdf
 }
 
+// SetXY maps json to gofpdf SetXY function. Pass "x" and "y" as float object properties in json logic.
+// Defaults are "x": 0.0, "y": 0.0
 func (p *JSONGOFPDF) SetXY(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	x := p.GetFloat("x", logic, 0.0)
-	y := p.GetFloat("y", logic, 0.0)
-	pdf.SetXY(x, y)
+	pdf.SetXY(p.GetFloat("x", logic, 0.0), p.GetFloat("y", logic, 0.0))
 	return pdf
 }
 
-func (p *JSONGOFPDF) CellFormat(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	width := p.GetFloat("width", logic, 0.0)
-	height := p.GetFloat("height", logic, 0.0)
-	text := p.GetString("text", logic, "")
-	text = strings.Replace(text, "{nn}", cast.ToString(pdf.PageNo()), -1)
-	border := p.GetString("border", logic, "")
-	line := p.GetInt("line", logic, 0)
-	align := p.GetString("align", logic, "L")
-	fill := p.GetBool("fill", logic, false)
-	link := p.GetInt("link", logic, 0)
-	linkStr := p.GetString("linkstr", logic, "")
-	pdf.CellFormat(width, height, text, border, line, align, fill, link, linkStr)
-	return pdf
-}
-
+// SetFooterFunc maps json to gofpdf SetFooterFunc function. Pass in an array of operation objects to have them be executed.
 func (p *JSONGOFPDF) SetFooterFunc(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf, nRow RowOptions) {
 	pdf.SetFooterFunc(func() {
 		pdf, nRow = p.RunOperations(pdf, logic, RowOptions{Index: 0})
@@ -196,16 +162,28 @@ func (p *JSONGOFPDF) SetFooterFunc(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf
 	return pdf, nRow
 }
 
-func (p *JSONGOFPDF) Cell(pdf *gofpdf.Fpdf, logic string, row RowOptions) (opdf *gofpdf.Fpdf) {
+func (p *JSONGOFPDF) CellFormat(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	width := p.GetFloat("width", logic, 0.0)
 	height := p.GetFloat("height", logic, 0.0)
-	text := p.GetStringIndex("text", logic, "", row)
-	pdf.Cell(width, height, text)
+	text := p.GetString("text", logic, "")
+	text = strings.Replace(text, "<br>", "\n", -1)
+	for index, global := range p.Globals {
+		text = strings.Replace(text, index, global, -1)
+	}
+	text = strings.Replace(text, "{nn}", cast.ToString(pdf.PageNo()), -1)
+	border := p.GetString("border", logic, "")
+	line := p.GetInt("line", logic, 0)
+	align := p.GetString("align", logic, "L")
+	fill := p.GetBool("fill", logic, false)
+	link := p.GetInt("link", logic, 0)
+	linkStr := p.GetString("linkstr", logic, "")
+	pdf.CellFormat(width, height, p.tr(text), border, line, align, fill, link, linkStr)
 	return pdf
 }
 
-// RowY sets pdf Y to RowY position
-func (p *JSONGOFPDF) RowY(pdf *gofpdf.Fpdf, row RowOptions) (opdf *gofpdf.Fpdf) {
-	pdf.SetY(p.CurrentRowY)
+// Cell maps json to gofpdf Cell function. Pass in "width" float, "height" float, "text" string object properties in json logic.
+// Defaults are "width": 0.0, "height": 0.0, "text": ""
+func (p *JSONGOFPDF) Cell(pdf *gofpdf.Fpdf, logic string, row RowOptions) (opdf *gofpdf.Fpdf) {
+	pdf.Cell(p.GetFloat("width", logic, 0.0), p.GetFloat("height", logic, 0.0), p.GetStringIndex("text", logic, "", row))
 	return pdf
 }
