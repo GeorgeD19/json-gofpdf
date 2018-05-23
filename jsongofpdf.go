@@ -106,7 +106,7 @@ func (p *JSONGOFPDF) PreOperation(pdf *gofpdf.Fpdf, name string, logic string) (
 
 // RunOperation ensures that any operation ran doesn't crash the system if it doesn't exist
 func (p *JSONGOFPDF) RunOperation(pdf *gofpdf.Fpdf, name string, logic string, row RowOptions) (opdf *gofpdf.Fpdf, nRow RowOptions) {
-	p.CurrentX = pdf.GetX()
+	// p.CurrentX = pdf.GetX()
 	p.CurrentY = pdf.GetY()
 
 	// fmt.Printf("CurrentX: %v, CurrentY: %v, Operation: %v, Page: %v", p.CurrentX, p.CurrentY, name, p.currentPage)
@@ -396,13 +396,17 @@ func (p *JSONGOFPDF) MultiCell(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpd
 	fill := p.GetBool("fill", logic, false)
 
 	cell := p.Tables[p.TableIndex].Rows[p.RowIndex].Cells[p.CellIndex]
-	for _, row := range p.Tables[p.TableIndex].Rows {
-		for _, rowCell := range row.Cells {
-			if rowCell.Key == target || rowCell.Path == target {
-				cell = rowCell
-			}
+	// for _, row := range p.Tables[p.TableIndex].Rows {
+	// for _, rowCell := range row.Cells {
+	// This isn't quite working
+	for _, rowCell := range p.Tables[p.TableIndex].Rows[p.RowIndex].Cells {
+		if rowCell.Key == target || rowCell.Path == target {
+			cell = rowCell
 		}
 	}
+
+	// }
+	// }
 
 	if text != "" {
 		cell = Cell{
@@ -591,7 +595,7 @@ func (p *JSONGOFPDF) MultiCellFormField(pdf *gofpdf.Fpdf, logic string, row RowO
 // UpdateX sets current pdfX position to currentX position plus what is passed.
 func (p *JSONGOFPDF) UpdateX(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	pdf.SetX(p.CurrentX + p.GetFloat("width", logic, 0.0))
-	fmt.Println(pdf.GetX())
+	p.CurrentX = pdf.GetX()
 	return pdf
 }
 
