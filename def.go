@@ -42,10 +42,12 @@ type JSONGOFPDF struct {
 	TableIndex int
 	// Row options
 	RowFuncIndex int
-	RowIndex     int
-	RowHeight    float64
-	RowCells     float64
+
+	RowIndex  int
+	RowHeight float64
+	RowCells  float64
 	// Cell options
+	CellPreIndex   int
 	CellIndex      int
 	CurrentX       float64
 	CurrentY       float64
@@ -102,9 +104,10 @@ type Row struct {
 }
 
 type Cell struct {
-	Path   string
-	Key    string
-	Title  string
-	Value  interface{}
-	Images []ImageFile
+	Path     string
+	Key      string
+	Title    string
+	Value    interface{}
+	Images   []ImageFile
+	Disabled bool
 }

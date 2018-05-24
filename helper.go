@@ -43,7 +43,7 @@ func (p *JSONGOFPDF) GetString(name string, logic string, fallback string) (valu
 }
 
 // GetImage returns a File type containing the hex version of the image with associated meta information
-func (p *JSONGOFPDF) GetImage(FileName string) (f ImageFile, Err error) {
+func GetImage(FileName string) (f ImageFile, Err error) {
 
 	FoundFile := ImageFile{}
 
@@ -80,13 +80,13 @@ func (p *JSONGOFPDF) GetImage(FileName string) (f ImageFile, Err error) {
 	// Only parse for supported functions
 	switch FoundFile.Type {
 	case "jpg":
-		FoundFile.Width, FoundFile.Height = p.GetJpgDimensions(File)
+		FoundFile.Width, FoundFile.Height = GetJpgDimensions(File)
 	case "gif":
-		FoundFile.Width, FoundFile.Height = p.GetGifDimensions(File)
+		FoundFile.Width, FoundFile.Height = GetGifDimensions(File)
 	case "png":
-		FoundFile.Width, FoundFile.Height = p.GetPngDimensions(File)
+		FoundFile.Width, FoundFile.Height = GetPngDimensions(File)
 	case "bmp":
-		FoundFile.Width, FoundFile.Height = p.GetBmpDimensions(File)
+		FoundFile.Width, FoundFile.Height = GetBmpDimensions(File)
 	default:
 		return FoundFile, err
 	}
@@ -94,7 +94,7 @@ func (p *JSONGOFPDF) GetImage(FileName string) (f ImageFile, Err error) {
 	return FoundFile, nil
 }
 
-func (p *JSONGOFPDF) GetJpgDimensions(file *os.File) (width int, height int) {
+func GetJpgDimensions(file *os.File) (width int, height int) {
 	fi, _ := file.Stat()
 	fileSize := fi.Size()
 
@@ -117,7 +117,7 @@ func (p *JSONGOFPDF) GetJpgDimensions(file *os.File) (width int, height int) {
 	return 0, 0
 }
 
-func (p *JSONGOFPDF) GetGifDimensions(file *os.File) (width int, height int) {
+func GetGifDimensions(file *os.File) (width int, height int) {
 	bytes := make([]byte, 4)
 	file.ReadAt(bytes, 6)
 	width = int(bytes[0]) + int(bytes[1])*256
@@ -125,7 +125,7 @@ func (p *JSONGOFPDF) GetGifDimensions(file *os.File) (width int, height int) {
 	return
 }
 
-func (p *JSONGOFPDF) GetBmpDimensions(file *os.File) (width int, height int) {
+func GetBmpDimensions(file *os.File) (width int, height int) {
 	bytes := make([]byte, 8)
 	file.ReadAt(bytes, 18)
 	width = int(bytes[3])<<24 | int(bytes[2])<<16 | int(bytes[1])<<8 | int(bytes[0])
@@ -133,7 +133,7 @@ func (p *JSONGOFPDF) GetBmpDimensions(file *os.File) (width int, height int) {
 	return
 }
 
-func (p *JSONGOFPDF) GetPngDimensions(file *os.File) (width int, height int) {
+func GetPngDimensions(file *os.File) (width int, height int) {
 	bytes := make([]byte, 8)
 	file.ReadAt(bytes, 16)
 	width = int(bytes[0])<<24 | int(bytes[1])<<16 | int(bytes[2])<<8 | int(bytes[3])

@@ -69,48 +69,9 @@ func (p *JSONGOFPDF) ParseObject(pdf *gofpdf.Fpdf, logic string, row RowOptions)
 	return pdf, nRow
 }
 
-// PreOperations will iterate through the array of operations and execute each
-func (p *JSONGOFPDF) PreOperations(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	jsonparser.ArrayEach([]byte(logic), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		switch dataType {
-		case jsonparser.Object:
-			pdf = p.PreParseObject(pdf, string(value))
-			break
-		}
-	})
-
-	return pdf
-}
-
-// PreParseObject entry point
-func (p *JSONGOFPDF) PreParseObject(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	jsonparser.ObjectEach([]byte(logic), func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
-		pdf = p.PreOperation(pdf, string(key), string(value))
-		return nil
-	})
-
-	return pdf
-}
-
-func (p *JSONGOFPDF) PreOperation(pdf *gofpdf.Fpdf, name string, logic string) (opdf *gofpdf.Fpdf) {
-	switch name {
-	case "multicellformfield":
-		p.PreMultiCellFormField(pdf, logic)
-		break
-	case "multicell":
-		p.PreRowMultiCell(pdf, logic)
-		break
-	}
-	return pdf
-}
-
 // RunOperation ensures that any operation ran doesn't crash the system if it doesn't exist
 func (p *JSONGOFPDF) RunOperation(pdf *gofpdf.Fpdf, name string, logic string, row RowOptions) (opdf *gofpdf.Fpdf, nRow RowOptions) {
-	// p.CurrentX = pdf.GetX()
 	p.CurrentY = pdf.GetY()
-
-	// fmt.Printf("CurrentX: %v, CurrentY: %v, Operation: %v, Page: %v", p.CurrentX, p.CurrentY, name, p.currentPage)
-	// fmt.Println("")
 
 	nRow = row
 	switch name {
@@ -395,7 +356,13 @@ func (p *JSONGOFPDF) MultiCell(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpd
 	text := p.GetString("text", logic, "")
 	fill := p.GetBool("fill", logic, false)
 
-	cell := p.Tables[p.TableIndex].Rows[p.RowIndex].Cells[p.CellIndex]
+	// We cannot have a fallback as that screws the rendering
+	cell := Cell{}
+	// This dies
+	if target == "" {
+		cell = p.Tables[p.TableIndex].Rows[p.RowIndex].Cells[p.CellIndex]
+	}
+
 	// for _, row := range p.Tables[p.TableIndex].Rows {
 	// for _, rowCell := range row.Cells {
 	// This isn't quite working
@@ -425,55 +392,66 @@ func (p *JSONGOFPDF) MultiCell(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpd
 		}
 	}
 
-	if p.RowHeight > height {
-		height = p.RowHeight
+	// if p.RowHeight > height {
+	// 	height = p.RowHeight
+	// }
+
+	cellCount := 0.0
+	cellX := pdf.GetX()
+
+	renderText := ""
+	if cast.ToString(cell.Value) != "" {
+		switch attribute {
+		case "title":
+			renderText = p.tr(strings.Replace(cell.Title, "<br>", "\n", -1))
+			cellList := pdf.SplitLines([]byte(renderText), width)
+			cellCount = float64(len(cellList))
+			pdf.MultiCell(width, height, renderText, border, align, fill)
+			break
+		case "value":
+			renderText = p.tr(strings.Replace(cast.ToString(cell.Value), "<br>", "\n", -1))
+			cellList := pdf.SplitLines([]byte(renderText), width)
+			cellCount = float64(len(cellList))
+			pdf.MultiCell(width, height, renderText, border, align, fill)
+			break
+		}
 	}
-
-	switch attribute {
-	case "title":
-		text := p.tr(strings.Replace(cell.Title, "<br>", "\n", -1))
-		cellList := pdf.SplitLines([]byte(text), width)
-		cellCount := float64(len(cellList))
-
-		if cellCount > p.RowCells {
-			p.RowCells = cellCount
+	// if renderText != "" {
+	if cellCount < p.RowCells {
+		for i := 0; i < int(p.RowCells-cellCount); i++ {
+			pdf.SetX(cellX)
+			pdf.MultiCell(width, height, "", border, align, fill)
 		}
+	}
+	// }
 
-		cellHeight := height / cellCount
+	if cell.Images != nil && attribute == "value" {
+		for _, image := range cell.Images {
 
-		pdf.MultiCell(width, cellHeight, p.tr(strings.Replace(cell.Title, "<br>", "\n", -1)), border, align, fill)
-		break
-	case "value":
-		// CurrentX := pdf.GetX()
+			// For any media against the field
+			imageDecoded, err := hex.DecodeString(image.Data)
+			if err == nil {
+				options := gofpdf.ImageOptions{
+					ReadDpi:   false,
+					ImageType: image.Type,
+				}
 
-		text := p.tr(strings.Replace(cast.ToString(cell.Value), "<br>", "\n", -1))
-		cellList := pdf.SplitLines([]byte(text), width)
-		cellCount := float64(len(cellList))
-		if cellCount < 1 {
-			cellCount = 1
+				imageWidth := float64(image.Width) / float64(p.DPI)
+				imageHeight := float64(image.Height) / float64(p.DPI)
+
+				if imageWidth > width {
+					imageWidth = width
+					imageHeight = 0
+				}
+
+				// Pass binary image into PDF
+				pdf.RegisterImageOptionsReader(string(p.MediaIndex), options, bytes.NewReader(imageDecoded))
+				pdf.ImageOptions(string(p.MediaIndex), cellX, pdf.GetY(), imageWidth, imageHeight, true, options, -1, "")
+				p.MediaIndex++
+			} else {
+				fmt.Println(err)
+			}
 		}
-
-		if cellCount > p.RowCells {
-			p.RowCells = cellCount
-		}
-
-		cellHeight := height / cellCount
-
-		pdf.MultiCell(width, cellHeight, text, border, align, fill)
-		break
-	default:
-		text := p.tr(strings.Replace(cast.ToString(cell.Value), "<br>", "\n", -1))
-		cellList := pdf.SplitLines([]byte(text), width)
-		cellCount := float64(len(cellList))
-
-		if cellCount > p.RowCells {
-			p.RowCells = cellCount
-		}
-
-		cellHeight := height / cellCount
-
-		pdf.MultiCell(width, cellHeight, text, border, align, fill)
-		break
 	}
 
 	CurrentY := pdf.GetY()
@@ -638,12 +616,14 @@ func (p *JSONGOFPDF) Body(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf, nR
 			p.RowHeight = 0
 			p.RowCells = 0.0
 			p.CellIndex = 0
+			p.CellPreIndex = 0
 
 			for y := 0; y < len(p.Tables[p.TableIndex].Rows[x].Cells); y++ {
 				p.PreOperations(pdf, rowLogic[p.RowFuncIndex])
-				pdf, nRow = p.RunOperations(pdf, rowLogic[p.RowFuncIndex], nRow)
-				p.CellIndex++
+				p.CellPreIndex++
 			}
+
+			pdf, nRow = p.RunOperations(pdf, rowLogic[p.RowFuncIndex], nRow)
 
 			if (p.RowFuncIndex + 1) < len(rowLogic) {
 				p.RowFuncIndex++
@@ -720,7 +700,7 @@ func (p *JSONGOFPDF) Image(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	link := p.GetInt("link", logic, -1)
 	linkStr := p.GetString("linkstr", logic, "")
 
-	image, _ := p.GetImage(src)
+	image, _ := GetImage(src)
 	imageContent := strings.TrimPrefix(image.Data, "0x")
 	imageDecoded, _ := hex.DecodeString(imageContent)
 
