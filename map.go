@@ -1,6 +1,7 @@
 package jsongofpdf
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/jung-kurt/gofpdf"
@@ -155,9 +156,25 @@ func (p *JSONGOFPDF) SetXY(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	return pdf
 }
 
+// SetHeaderFunc maps json to gofpdf SetHeaderFunc function.
+func (p *JSONGOFPDF) SetHeaderFunc(pdf *gofpdf.Fpdf, logic string, row RowOptions) (opdf *gofpdf.Fpdf, nRow RowOptions) {
+	pdf.SetHeaderFunc(func() {
+		nRow = row
+		p.NewPage = true
+		p.currentPage++
+		pdf, nRow = p.RunOperations(pdf, logic, nRow)
+		p.CurrentRowY = pdf.GetY()
+		p.CurrentY = pdf.GetY()
+		p.HeaderHeight = pdf.GetY()
+	})
+
+	return pdf, nRow
+}
+
 // SetFooterFunc maps json to gofpdf SetFooterFunc function. Pass in an array of operation objects to have them be executed.
 func (p *JSONGOFPDF) SetFooterFunc(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf, nRow RowOptions) {
 	pdf.SetFooterFunc(func() {
+		fmt.Println("footer")
 		pdf, nRow = p.RunOperations(pdf, logic, RowOptions{Index: 0})
 	})
 	return pdf, nRow

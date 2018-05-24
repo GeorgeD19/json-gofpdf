@@ -715,20 +715,6 @@ func (p *JSONGOFPDF) Image(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	return pdf
 }
 
-func (p *JSONGOFPDF) SetHeaderFunc(pdf *gofpdf.Fpdf, logic string, row RowOptions) (opdf *gofpdf.Fpdf, nRow RowOptions) {
-	pdf.SetHeaderFunc(func() {
-		nRow = row
-		p.NewPage = true
-		p.currentPage++
-		pdf, nRow = p.RunOperations(pdf, logic, nRow)
-		p.CurrentRowY = pdf.GetY()
-		p.CurrentY = pdf.GetY()
-		p.HeaderHeight = pdf.GetY()
-	})
-
-	return pdf, nRow
-}
-
 func (p *JSONGOFPDF) GetStringIndex(name string, logic string, fallback string, row RowOptions) (value string) {
 	result := fallback
 	attribute, _, _, err := p.GetAttributeIndex(name, logic, true, row)
