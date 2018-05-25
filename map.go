@@ -1,7 +1,6 @@
 package jsongofpdf
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/jung-kurt/gofpdf"
@@ -28,6 +27,17 @@ import (
 // mm = 72.0 / 25.4
 // a3 (w:841.89, h:1190.55)
 // a4 (w:8.267777777777778, h:33.145275590551181)
+
+// SetHeaderFunc maps json to gofpdf SetHeaderFunc function.
+func (p *JSONGOFPDF) SetHeaderFunc(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	pdf.SetHeaderFunc(func() {
+		pdf = p.RunArrayOperations(pdf, logic)
+		p.CurrentRowY = pdf.GetY()
+		p.CurrentY = pdf.GetY()
+	})
+
+	return pdf
+}
 
 // New passes the orientation, unit, size and dir object properties to the gofpdf New function creating a new pdf
 func (p *JSONGOFPDF) New(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
@@ -156,52 +166,32 @@ func (p *JSONGOFPDF) SetXY(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	return pdf
 }
 
-// SetHeaderFunc maps json to gofpdf SetHeaderFunc function.
-func (p *JSONGOFPDF) SetHeaderFunc(pdf *gofpdf.Fpdf, logic string, row RowOptions) (opdf *gofpdf.Fpdf, nRow RowOptions) {
-	pdf.SetHeaderFunc(func() {
-		nRow = row
-		p.NewPage = true
-		p.currentPage++
-		pdf, nRow = p.RunOperations(pdf, logic, nRow)
-		p.CurrentRowY = pdf.GetY()
-		p.CurrentY = pdf.GetY()
-		p.HeaderHeight = pdf.GetY()
-	})
-
-	return pdf, nRow
-}
-
 // SetFooterFunc maps json to gofpdf SetFooterFunc function. Pass in an array of operation objects to have them be executed.
-func (p *JSONGOFPDF) SetFooterFunc(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf, nRow RowOptions) {
+func (p *JSONGOFPDF) SetFooterFunc(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	pdf.SetFooterFunc(func() {
-		fmt.Println("footer")
-		pdf, nRow = p.RunOperations(pdf, logic, RowOptions{Index: 0})
+		pdf = p.RunArrayOperations(pdf, logic)
 	})
-	return pdf, nRow
+	return pdf
 }
 
+// CellFormat maps json to gofpdf CellFormat function. Pass in "width" float, "height" float, "border" string, "text" string, "line" int, "align" string, "fill" boolean, "link" integer, "linkstr" string
+// Defaults are "width": 0.0, "height": 0.0, "text": "", "border": "", "line": 0, "align": "L", "fill": false, "link": 0, "linkstr": ""
 func (p *JSONGOFPDF) CellFormat(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	width := p.GetFloat("width", logic, 0.0)
-	height := p.GetFloat("height", logic, 0.0)
 	text := p.GetString("text", logic, "")
 	text = strings.Replace(text, "<br>", "\n", -1)
-	for index, global := range p.Globals {
-		text = strings.Replace(text, index, global, -1)
-	}
 	text = strings.Replace(text, "{nn}", cast.ToString(pdf.PageNo()), -1)
-	border := p.GetString("border", logic, "")
-	line := p.GetInt("line", logic, 0)
-	align := p.GetString("align", logic, "L")
-	fill := p.GetBool("fill", logic, false)
-	link := p.GetInt("link", logic, 0)
-	linkStr := p.GetString("linkstr", logic, "")
-	pdf.CellFormat(width, height, p.tr(text), border, line, align, fill, link, linkStr)
+	text = p.Calculation(p.GetString("calculation", logic, ""), text)
+	text = p.Format(p.GetString("format", logic, ""), text)
+	for index, value := range p.Globals {
+		text = strings.Replace(text, index, cast.ToString(value), -1)
+	}
+	pdf.CellFormat(p.GetFloat("width", logic, 0.0), p.GetFloat("height", logic, 0.0), p.tr(text), p.GetString("border", logic, ""), p.GetInt("line", logic, 0), p.GetString("align", logic, "L"), p.GetBool("fill", logic, false), p.GetInt("link", logic, 0), p.GetString("linkstr", logic, ""))
 	return pdf
 }
 
 // Cell maps json to gofpdf Cell function. Pass in "width" float, "height" float, "text" string object properties in json logic.
 // Defaults are "width": 0.0, "height": 0.0, "text": ""
-func (p *JSONGOFPDF) Cell(pdf *gofpdf.Fpdf, logic string, row RowOptions) (opdf *gofpdf.Fpdf) {
-	pdf.Cell(p.GetFloat("width", logic, 0.0), p.GetFloat("height", logic, 0.0), p.GetStringIndex("text", logic, "", row))
+func (p *JSONGOFPDF) Cell(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	pdf.Cell(p.GetFloat("width", logic, 0.0), p.GetFloat("height", logic, 0.0), p.GetStringIndex("text", logic, ""))
 	return pdf
 }

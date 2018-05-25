@@ -3,9 +3,6 @@ package jsongofpdf
 import (
 	"errors"
 	"time"
-
-	alpaca "github.com/GeorgeD19/alpaca-go"
-	"github.com/GeorgeD19/securigroupgo/repository/model"
 )
 
 var (
@@ -13,86 +10,39 @@ var (
 	ErrInvalidOperation = errors.New("Invalid operation")
 )
 
-type JSONGOFPDF struct {
-	Logic        string
-	Data         string
-	Order        *model.Order
-	Submission   *model.Submission
-	Form         *model.Form
-	Parser       *alpaca.Alpaca
-	User         model.User
-	ColCount     int
-	MarginRw     float64
-	MarginH      float64
-	LineHtLg     float64
-	LineHt       float64
-	DocWidth     float64
-	initY        float64
-	initX        float64
-	nextY        float64
-	tr           func(string) string
-	DataIndex    int
-	NewPage      bool
-	currentPage  int
-	HeaderHeight float64
+type JSONGOFPDFOptions struct {
+	Logic   string
+	Data    string
+	Tables  []Table
+	Globals map[string]interface{}
+}
 
-	Globals map[string]string
+type JSONGOFPDF struct {
+	Globals  map[string]interface{}
+	tr       func(string) string
+	Logic    string
+	DocWidth float64
+	initY    float64
+
 	// Table options
 	Tables     []Table
 	TableIndex int
 	// Row options
 	RowFuncIndex int
-
-	RowIndex  int
-	RowHeight float64
-	RowCells  float64
+	RowIndex     int
+	RowHeight    float64
+	RowCells     float64
 	// Cell options
-	CellPreIndex   int
-	CellIndex      int
-	CurrentX       float64
-	CurrentY       float64
-	CurrentRowX    float64
-	CurrentRowY    float64
-	NextY          float64
-	PrevCellHeight float64
-	MediaIndex     int
-	DPI            int
-}
-
-type JSONGOFPDFOptions struct {
-	Logic      string
-	Data       string
-	Order      *model.Order
-	Submission *model.Submission
-	Form       *model.Form
-	Parser     *alpaca.Alpaca
-	User       model.User
-	Tables     []Table
-	Globals    map[string]string
-}
-
-type RowOptions struct {
-	Index          int
-	CurrentY       float64
-	NextY          float64
-	PrevCellHeight float64
-}
-
-type File struct {
-	Data    string
-	Type    string
-	Mime    string
-	Name    string
-	Created time.Time
-}
-
-type ImageFile struct {
-	Data   string
-	Type   string
-	Mime   string
-	Name   string
-	Width  int
-	Height int
+	CellPreIndex int
+	CellIndex    int
+	CurrentX     float64
+	CurrentY     float64
+	CurrentRowX  float64
+	CurrentRowY  float64
+	NextY        float64
+	// Media options
+	MediaIndex int
+	DPI        int
 }
 
 type Table struct {
@@ -106,8 +56,20 @@ type Row struct {
 type Cell struct {
 	Path     string
 	Key      string
+	Format   string
 	Title    string
 	Value    interface{}
 	Images   []ImageFile
 	Disabled bool
+	Type     string
+}
+
+type ImageFile struct {
+	Data    string
+	Type    string
+	Mime    string
+	Name    string
+	Created time.Time
+	Width   int
+	Height  int
 }
