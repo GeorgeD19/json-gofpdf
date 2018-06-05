@@ -1,56 +1,70 @@
 package jsongofpdf
 
 import (
-	"github.com/buger/jsonparser"
+	jsonlogic "github.com/GeorgeD19/json-logic-go"
 	"github.com/spf13/cast"
 )
 
 func (p *JSONGOFPDF) Calculation(logic, value string) string {
-	result := value
+	result := 0.0
 	calcType := p.GetString("type", logic, "")
+	formula := p.GetString("formula", logic, "")
 	switch calcType {
 	case "count":
-
+		for _, data := range p.Tables[p.TableIndex].Data {
+			logicresult, _ := jsonlogic.Apply(formula, data)
+			if cast.ToFloat64(logicresult) > 0 {
+				result += 1.0
+			}
+		}
 		break
 	case "sum":
-		result = p.CalculationSum(logic, value)
+		for _, data := range p.Tables[p.TableIndex].Data {
+			logicresult, _ := jsonlogic.Apply(formula, data)
+			result += cast.ToFloat64(logicresult)
+		}
 		break
 	case "minimum":
-
+		for i, data := range p.Tables[p.TableIndex].Data {
+			logicresult, _ := jsonlogic.Apply(formula, data)
+			if i > 0 {
+				if cast.ToFloat64(logicresult) < result {
+					result = cast.ToFloat64(logicresult)
+				}
+			} else {
+				result += cast.ToFloat64(logicresult)
+			}
+		}
 		break
 	case "maximum":
-
+		for i, data := range p.Tables[p.TableIndex].Data {
+			logicresult, _ := jsonlogic.Apply(formula, data)
+			if i > 0 {
+				if cast.ToFloat64(logicresult) > result {
+					result = cast.ToFloat64(logicresult)
+				}
+			} else {
+				result += cast.ToFloat64(logicresult)
+			}
+		}
 		break
 	case "average":
-
+		for _, data := range p.Tables[p.TableIndex].Data {
+			logicresult, _ := jsonlogic.Apply(formula, data)
+			result += cast.ToFloat64(logicresult)
+		}
+		result = result / cast.ToFloat64(len(p.Tables[p.TableIndex].Data))
+		break
+	default:
+		data := p.Tables[p.TableIndex].Data[p.TableIndex]
+		logicresult, _ := jsonlogic.Apply(formula, data)
+		result = cast.ToFloat64(logicresult)
 		break
 	}
-	return result
-}
 
-func (p *JSONGOFPDF) CalculationSum(logic, value string) string {
-	result := value
-	formula := p.GetString("formula", logic, "")
-	if formula != "" {
-		calcResult := 0.0
-		jsonparser.ArrayEach([]byte(formula), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-			switch dataType {
-			case jsonparser.String:
-
-				// foreach value in formula array we get all the cell values with said key and add their float values up
-				for _, row := range p.Tables[p.TableIndex].Rows {
-					for _, cell := range row.Cells {
-						target := string(value)
-						if target == cell.Key || target == cell.Path {
-							calcResult += cast.ToFloat64(cell.Value)
-						}
-					}
-				}
-
-				break
-			}
-		})
-		result = cast.ToString(calcResult)
+	if result <= 0 && value != "" {
+		return value
 	}
-	return result
+
+	return cast.ToString(result)
 }

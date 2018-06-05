@@ -47,6 +47,7 @@ type JSONGOFPDF struct {
 
 type Table struct {
 	Rows []Row
+	Data []string
 }
 
 type Row struct {

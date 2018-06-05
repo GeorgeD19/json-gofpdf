@@ -180,7 +180,10 @@ func (p *JSONGOFPDF) CellFormat(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fp
 	text := p.GetString("text", logic, "")
 	text = strings.Replace(text, "<br>", "\n", -1)
 	text = strings.Replace(text, "{nn}", cast.ToString(pdf.PageNo()), -1)
-	text = p.Calculation(p.GetString("calculation", logic, ""), text)
+	if v := p.GetString("calculation", logic, ""); v != "" {
+		text = p.Calculation(v, text)
+	}
+
 	text = p.Format(p.GetString("format", logic, ""), text)
 	for index, value := range p.Globals {
 		text = strings.Replace(text, index, cast.ToString(value), -1)

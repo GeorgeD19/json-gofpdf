@@ -50,7 +50,8 @@ func (p *JSONGOFPDF) Body(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 
 	// Then foreach table.rows we can alternate between each function using RowIndex which resets on each new table.row
 	if len(rowLogic) > 0 {
-		for x := 0; x < len(p.Tables[p.TableIndex].Rows); x++ {
+		rowLength := len(p.Tables[p.TableIndex].Rows)
+		for x := 0; x < rowLength; x++ {
 
 			p.RowIndex = x
 			p.RowHeight = 0
@@ -137,6 +138,10 @@ func (p *JSONGOFPDF) MultiCell(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpd
 	fill := p.GetBool("fill", logic, false)
 	format := p.GetString("format", logic, "")
 
+	if v := p.GetString("calculation", logic, ""); v != "" {
+		text = p.Calculation(v, text)
+	}
+
 	cell := Cell{}
 	if target == "" {
 		cell = p.Tables[p.TableIndex].Rows[p.RowIndex].Cells[p.CellIndex]
@@ -185,7 +190,7 @@ func (p *JSONGOFPDF) MultiCell(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpd
 		format = cell.Type
 	}
 
-	if format != "" && attribute == "value" {
+	if format != "" {
 		renderText = p.Format(format, renderText)
 	}
 
