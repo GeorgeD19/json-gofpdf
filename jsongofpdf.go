@@ -138,6 +138,12 @@ func (p *JSONGOFPDF) RunOperation(pdf *gofpdf.Fpdf, name string, logic string) (
 	case "multicell":
 		pdf = p.MultiCell(pdf, logic)
 		break
+	case "rect":
+		pdf = p.Rect(pdf, logic)
+		break
+	case "linerow":
+		pdf = p.LineRow(pdf, logic)
+		break
 	default:
 		return pdf
 	}

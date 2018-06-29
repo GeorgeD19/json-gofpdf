@@ -9,9 +9,10 @@ func (p *JSONGOFPDF) Calculation(logic, value string) string {
 	result := 0.0
 	calcType := p.GetString("type", logic, "")
 	formula := p.GetString("formula", logic, "")
+	table := p.Tables[p.TableIndex]
 	switch calcType {
 	case "count":
-		for _, data := range p.Tables[p.TableIndex].Data {
+		for _, data := range table.Data {
 			logicresult, _ := jsonlogic.Apply(formula, data)
 			if cast.ToFloat64(logicresult) > 0 {
 				result += 1.0
@@ -19,13 +20,13 @@ func (p *JSONGOFPDF) Calculation(logic, value string) string {
 		}
 		break
 	case "sum":
-		for _, data := range p.Tables[p.TableIndex].Data {
+		for _, data := range table.Data {
 			logicresult, _ := jsonlogic.Apply(formula, data)
 			result += cast.ToFloat64(logicresult)
 		}
 		break
 	case "minimum":
-		for i, data := range p.Tables[p.TableIndex].Data {
+		for i, data := range table.Data {
 			logicresult, _ := jsonlogic.Apply(formula, data)
 			if i > 0 {
 				if cast.ToFloat64(logicresult) < result {
@@ -37,7 +38,7 @@ func (p *JSONGOFPDF) Calculation(logic, value string) string {
 		}
 		break
 	case "maximum":
-		for i, data := range p.Tables[p.TableIndex].Data {
+		for i, data := range table.Data {
 			logicresult, _ := jsonlogic.Apply(formula, data)
 			if i > 0 {
 				if cast.ToFloat64(logicresult) > result {
@@ -49,16 +50,17 @@ func (p *JSONGOFPDF) Calculation(logic, value string) string {
 		}
 		break
 	case "average":
-		for _, data := range p.Tables[p.TableIndex].Data {
+		for _, data := range table.Data {
 			logicresult, _ := jsonlogic.Apply(formula, data)
 			result += cast.ToFloat64(logicresult)
 		}
-		result = result / cast.ToFloat64(len(p.Tables[p.TableIndex].Data))
+		result = result / cast.ToFloat64(len(table.Data))
 		break
 	default:
-		data := p.Tables[p.TableIndex].Data[p.TableIndex]
-		logicresult, _ := jsonlogic.Apply(formula, data)
-		result = cast.ToFloat64(logicresult)
+		if len(table.Data)-1 >= p.RowIndex {
+			logicresult, _ := jsonlogic.Apply(formula, table.Data[p.RowIndex])
+			result = cast.ToFloat64(logicresult)
+		}
 		break
 	}
 

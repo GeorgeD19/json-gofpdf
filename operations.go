@@ -121,6 +121,16 @@ func (p *JSONGOFPDF) RowY(pdf *gofpdf.Fpdf) (opdf *gofpdf.Fpdf) {
 	return pdf
 }
 
+// LineRow creates a line at CurrentRowY position. Pass "width", "height" float object properties.
+func (p *JSONGOFPDF) LineRow(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	currentX := pdf.GetX()
+	rowY := p.CurrentRowY
+	nextX := currentX + p.GetFloat("width", logic, 0.0)
+	nextY := rowY + p.GetFloat("height", logic, 0.0)
+	pdf.Line(currentX, rowY, nextX, nextY)
+	return pdf
+}
+
 func (p *JSONGOFPDF) SetInitY(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	pdf.SetY(p.initY)
 	return pdf

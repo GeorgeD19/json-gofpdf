@@ -166,6 +166,13 @@ func (p *JSONGOFPDF) SetXY(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	return pdf
 }
 
+// Rect maps json to gofpdf Rect function. Pass "x", "y", "w", "h" float and "style" string object properties into json logic.
+// Defaults are "x": 0.0, "y": 0.0, "w": 0.0, "h": 0.0, "style": ""
+func (p *JSONGOFPDF) Rect(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	pdf.Rect(p.GetFloat("x", logic, 0.0), p.GetFloat("y", logic, 0.0), p.GetFloat("w", logic, 0.0), p.GetFloat("h", logic, 0.0), p.GetString("style", logic, ""))
+	return pdf
+}
+
 // SetFooterFunc maps json to gofpdf SetFooterFunc function. Pass in an array of operation objects to have them be executed.
 func (p *JSONGOFPDF) SetFooterFunc(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	pdf.SetFooterFunc(func() {
