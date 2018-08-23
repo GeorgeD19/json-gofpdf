@@ -20,7 +20,8 @@ func (p *JSONGOFPDF) UpdateX(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf)
 
 func (p *JSONGOFPDF) UpdateY(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	height := p.GetFloat("height", logic, 0.0)
-	pdf.SetY(pdf.GetY() + height)
+	p.ManualY = pdf.GetY() + height
+	pdf.SetY(p.ManualY)
 	return pdf
 }
 
@@ -121,6 +122,30 @@ func (p *JSONGOFPDF) RowY(pdf *gofpdf.Fpdf) (opdf *gofpdf.Fpdf) {
 	return pdf
 }
 
+// Line creates a line
+func (p *JSONGOFPDF) Line(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
+	x := p.GetFloat("x", logic, 0.0)
+	y := p.GetFloat("y", logic, 0.0)
+	auto := p.GetString("auto", logic, "")
+	if auto != "" {
+		switch auto {
+		case "P":
+			y = p.CurrentY
+			break
+		case "C":
+			y = pdf.GetY()
+			break
+		case "M":
+			y = p.ManualY
+			break
+		}
+	}
+	width := p.GetFloat("width", logic, 0.0)
+	height := p.GetFloat("height", logic, 1.0)
+	pdf.Line(x, y, x+width, y+height)
+	return pdf
+}
+
 // LineRow creates a line at CurrentRowY position. Pass "width", "height" float object properties.
 func (p *JSONGOFPDF) LineRow(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	currentX := pdf.GetX()
@@ -139,6 +164,7 @@ func (p *JSONGOFPDF) SetInitY(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf
 func (p *JSONGOFPDF) MultiCell(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	attribute := p.GetString("attribute", logic, "")
 	target := p.GetString("target", logic, "")
+	loop := p.GetBool("loop", logic, false)
 
 	width := p.GetFloat("width", logic, 0.0)
 	height := p.GetFloat("height", logic, 0.0) // Line height of each cell, not cell height
@@ -162,6 +188,20 @@ func (p *JSONGOFPDF) MultiCell(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpd
 			cell = rowCell
 		}
 	}
+
+	if loop {
+		for _, table := range p.Tables {
+			for _, row := range table.Rows {
+				for _, rowCell := range row.Cells {
+					if rowCell.Key == target || rowCell.Path == target {
+						cell = rowCell
+					}
+				}
+			}
+		}
+	}
+
+	// fmt.Println(cell)
 
 	if text != "" {
 		cell = Cell{
@@ -207,6 +247,7 @@ func (p *JSONGOFPDF) MultiCell(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpd
 	renderText = p.tr(strings.Replace(renderText, "<br>", "\n", -1))
 	cellList := pdf.SplitLines([]byte(renderText), width)
 	cellCount = float64(len(cellList))
+
 	if renderText != "" {
 		pdf.MultiCell(width, height, renderText, border, align, fill)
 	}

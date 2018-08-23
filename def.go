@@ -40,6 +40,7 @@ type JSONGOFPDF struct {
 	CurrentRowX  float64
 	CurrentRowY  float64
 	NextY        float64
+	ManualY      float64
 	// Media options
 	MediaIndex int
 	DPI        int

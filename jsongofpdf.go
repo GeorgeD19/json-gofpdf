@@ -144,6 +144,9 @@ func (p *JSONGOFPDF) RunOperation(pdf *gofpdf.Fpdf, name string, logic string) (
 	case "linerow":
 		pdf = p.LineRow(pdf, logic)
 		break
+	case "line":
+		pdf = p.Line(pdf, logic)
+		break
 	default:
 		return pdf
 	}

@@ -28,7 +28,7 @@ import (
 // a3 (w:841.89, h:1190.55)
 // a4 (w:8.267777777777778, h:33.145275590551181)
 
-// SetHeaderFunc maps json to gofpdf SetHeaderFunc function.
+// SetHeaderFunc maps json to gofpdf SetHeaderFunc function. https://godoc.org/github.com/jung-kurt/gofpdf#Fpdf.SetHeaderFunc
 func (p *JSONGOFPDF) SetHeaderFunc(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 	pdf.SetHeaderFunc(func() {
 		pdf = p.RunArrayOperations(pdf, logic)
@@ -147,8 +147,25 @@ func (p *JSONGOFPDF) AliasNbPages(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.
 
 // SetY maps json to gofpdf SetY function. Pass "y" as float object property in json logic.
 // Default is "y": 0.0
+// https://godoc.org/github.com/jung-kurt/gofpdf#Fpdf.SetY
+// Remember SetY resets the X position
 func (p *JSONGOFPDF) SetY(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
-	pdf.SetY(p.GetFloat("y", logic, 0.0))
+	y := p.GetFloat("y", logic, 0.0)
+	auto := p.GetString("auto", logic, "")
+	if auto != "" {
+		switch auto {
+		case "P":
+			y = p.CurrentY
+			break
+		case "C":
+			y = pdf.GetY()
+			break
+		case "M":
+			y = p.ManualY
+			break
+		}
+	}
+	pdf.SetY(y)
 	return pdf
 }
 
@@ -195,6 +212,13 @@ func (p *JSONGOFPDF) CellFormat(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fp
 	for index, value := range p.Globals {
 		text = strings.Replace(text, index, cast.ToString(value), -1)
 	}
+	for _, value := range p.Tables[p.TableIndex].Rows[p.RowIndex].Cells {
+		for i, v := range value.Value.(map[string]interface{}) {
+			valuePath := "{" + i + "}"
+			text = strings.Replace(text, valuePath, cast.ToString(v), -1)
+		}
+	}
+
 	pdf.CellFormat(p.GetFloat("width", logic, 0.0), p.GetFloat("height", logic, 0.0), p.tr(text), p.GetString("border", logic, ""), p.GetInt("line", logic, 0), p.GetString("align", logic, "L"), p.GetBool("fill", logic, false), p.GetInt("link", logic, 0), p.GetString("linkstr", logic, ""))
 	return pdf
 }
