@@ -212,10 +212,14 @@ func (p *JSONGOFPDF) CellFormat(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fp
 	for index, value := range p.Globals {
 		text = strings.Replace(text, index, cast.ToString(value), -1)
 	}
+
+	// Try cast?
 	for _, value := range p.Tables[p.TableIndex].Rows[p.RowIndex].Cells {
-		for i, v := range value.Value.(map[string]interface{}) {
-			valuePath := "{" + i + "}"
-			text = strings.Replace(text, valuePath, cast.ToString(v), -1)
+		if arrVal, ok := value.Value.(map[string]interface{}); ok {
+			for i, v := range arrVal {
+				valuePath := "{" + i + "}"
+				text = strings.Replace(text, valuePath, cast.ToString(v), -1)
+			}
 		}
 	}
 
