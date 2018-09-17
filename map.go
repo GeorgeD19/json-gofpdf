@@ -213,12 +213,15 @@ func (p *JSONGOFPDF) CellFormat(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fp
 		text = strings.Replace(text, index, cast.ToString(value), -1)
 	}
 
-	// Try cast?
-	for _, value := range p.Tables[p.TableIndex].Rows[p.RowIndex].Cells {
-		if arrVal, ok := value.Value.(map[string]interface{}); ok {
-			for i, v := range arrVal {
-				valuePath := "{" + i + "}"
-				text = strings.Replace(text, valuePath, cast.ToString(v), -1)
+	if len(p.Tables) > p.TableIndex {
+		if len(p.Tables[p.TableIndex].Rows) > p.RowIndex {
+			for _, value := range p.Tables[p.TableIndex].Rows[p.RowIndex].Cells {
+				if arrVal, ok := value.Value.(map[string]interface{}); ok {
+					for i, v := range arrVal {
+						valuePath := "{" + i + "}"
+						text = strings.Replace(text, valuePath, cast.ToString(v), -1)
+					}
+				}
 			}
 		}
 	}

@@ -179,13 +179,17 @@ func (p *JSONGOFPDF) MultiCell(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpd
 	}
 
 	cell := Cell{}
-	if target == "" {
-		cell = p.Tables[p.TableIndex].Rows[p.RowIndex].Cells[p.CellIndex]
-	}
 
-	for _, rowCell := range p.Tables[p.TableIndex].Rows[p.RowIndex].Cells {
-		if rowCell.Key == target || rowCell.Path == target {
-			cell = rowCell
+	if len(p.Tables) > p.TableIndex {
+		if len(p.Tables[p.TableIndex].Rows) > p.RowIndex {
+			if target == "" {
+				cell = p.Tables[p.TableIndex].Rows[p.RowIndex].Cells[p.CellIndex]
+			}
+			for _, rowCell := range p.Tables[p.TableIndex].Rows[p.RowIndex].Cells {
+				if rowCell.Key == target || rowCell.Path == target {
+					cell = rowCell
+				}
+			}
 		}
 	}
 
