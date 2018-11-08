@@ -141,8 +141,10 @@ func (p *JSONGOFPDF) Line(pdf *gofpdf.Fpdf, logic string) (opdf *gofpdf.Fpdf) {
 		}
 	}
 	width := p.GetFloat("width", logic, 0.0)
-	height := p.GetFloat("height", logic, 1.0)
-	pdf.Line(x, y, x+width, y+height)
+	height := p.GetFloat("height", logic, 0.0)
+	x2 := x + width
+	y2 := y + height
+	pdf.Line(x, y, x2, y2)
 	return pdf
 }
 
